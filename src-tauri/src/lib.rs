@@ -1,13 +1,20 @@
 mod adapters;
 mod database;
+mod deeplink;
+mod doctor;
 mod domain;
 mod installer;
 mod runtime;
 mod source;
 
 use database::Database;
+use deeplink::DeepLinkRequest;
+use doctor::DoctorReport;
 use domain::{LocalAgentSummary, SourceRefreshResult};
-use runtime::{AgentInstallation, InstallPlan, InstallResult, InstallTarget, RuntimeDetection};
+use runtime::{
+    AgentInstallation, InstallBackup, InstallEvent, InstallPlan, InstallResult, InstallTarget,
+    RuntimeDetection,
+};
 use std::path::PathBuf;
 use std::sync::Arc;
 use tauri::{Manager, State};
@@ -86,12 +93,44 @@ fn list_installations(state: State<'_, AppState>) -> Result<Vec<AgentInstallatio
 }
 
 #[tauri::command]
+fn list_install_backups(state: State<'_, AppState>) -> Result<Vec<InstallBackup>, String> {
+    state.db.list_backups().map_err(to_message)
+}
+
+#[tauri::command]
+fn list_install_events(state: State<'_, AppState>) -> Result<Vec<InstallEvent>, String> {
+    state.db.list_install_events().map_err(to_message)
+}
+
+#[tauri::command]
+fn restore_backup(backup_id: String, state: State<'_, AppState>) -> Result<(), String> {
+    let backup = state
+        .db
+        .get_backup(&backup_id)
+        .map_err(to_message)?
+        .ok_or_else(|| format!("backup not found: {backup_id}"))?;
+    let event = installer::restore_backup(&backup).map_err(to_message)?;
+    state.db.save_install_event(&event).map_err(to_message)?;
+    Ok(())
+}
+
+#[tauri::command]
 fn uninstall_installation(installation_id: String, state: State<'_, AppState>) -> Result<(), String> {
     if let Some(record) = state.db.get_installation(&installation_id).map_err(to_message)? {
         installer::remove_installation(&record).map_err(to_message)?;
         state.db.delete_installation(&installation_id).map_err(to_message)?;
     }
     Ok(())
+}
+
+#[tauri::command]
+fn run_doctor(state: State<'_, AppState>) -> Result<DoctorReport, String> {
+    Ok(doctor::run_doctor(&state.app_data_dir))
+}
+
+#[tauri::command]
+fn parse_deeplink(url: String) -> Result<DeepLinkRequest, String> {
+    deeplink::parse_deeplink(&url).map_err(to_message)
 }
 
 fn select_agents(all_agents: Vec<domain::LocalAgent>, agent_ids: &[String]) -> Vec<domain::LocalAgent> {
@@ -127,7 +166,12 @@ pub fn run() {
             get_install_plan,
             install_agents,
             list_installations,
-            uninstall_installation
+            list_install_backups,
+            list_install_events,
+            restore_backup,
+            uninstall_installation,
+            run_doctor,
+            parse_deeplink
         ])
         .run(tauri::generate_context!())
         .expect("error while running Agent Buddy");
