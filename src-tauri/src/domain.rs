@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use std::collections::BTreeMap;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -11,6 +12,14 @@ pub struct LocalAgent {
     pub source_path: String,
     pub body: String,
     pub raw_markdown: String,
+    #[serde(default)]
+    pub frontmatter: BTreeMap<String, String>,
+}
+
+impl LocalAgent {
+    pub fn frontmatter_field(&self, key: &str) -> Option<String> {
+        self.frontmatter.get(key).cloned()
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
