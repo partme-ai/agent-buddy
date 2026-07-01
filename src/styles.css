@@ -6,10 +6,13 @@ button { border: none; border-radius: 12px; background: #2563eb; color: white; p
 button:disabled { opacity: 0.5; cursor: not-allowed; }
 input, select { border: 1px solid #d7deea; border-radius: 12px; padding: 10px 12px; background: white; width: 100%; }
 code { display: block; color: #334155; background: #f1f5f9; border-radius: 8px; padding: 6px 8px; overflow-wrap: anywhere; }
+pre { white-space: pre-wrap; }
 .shell { padding: 28px; display: flex; flex-direction: column; gap: 18px; }
 .hero { display: flex; justify-content: space-between; align-items: center; gap: 24px; background: linear-gradient(135deg, #101827, #284b91); color: white; padding: 32px; border-radius: 24px; }
 .hero h1 { margin: 0; max-width: 880px; font-size: 34px; line-height: 1.1; }
 .hero p { max-width: 920px; color: #dbe7ff; }
+.hero-actions { display: flex; flex-direction: column; gap: 10px; min-width: 180px; }
+.hero-actions button:last-child { background: #0f766e; }
 .eyebrow { text-transform: uppercase; letter-spacing: 0.14em; font-size: 12px; font-weight: 800; }
 .status { background: #fff7ed; border: 1px solid #fed7aa; padding: 14px 16px; border-radius: 16px; color: #9a3412; }
 .grid.two { display: grid; grid-template-columns: 1.35fr 1fr; gap: 18px; }
@@ -17,22 +20,30 @@ code { display: block; color: #334155; background: #f1f5f9; border-radius: 8px; 
 .panel-header { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 14px; }
 .panel h2, .panel h3 { margin: 0; }
 .runtime-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; max-height: 640px; overflow: auto; padding-right: 4px; }
-.runtime-card, .agent-card, .install-card, .plan-card { display: flex; gap: 12px; border: 1px solid #e5eaf3; border-radius: 16px; padding: 12px; background: #fbfcff; }
+.runtime-card, .agent-card, .install-card, .plan-card, .doctor-card, .event-card { display: flex; gap: 12px; border: 1px solid #e5eaf3; border-radius: 16px; padding: 12px; background: #fbfcff; }
 .runtime-card.detected { border-color: #86efac; background: #f0fdf4; }
-.runtime-card div, .agent-card div, .install-card div, .plan-card { display: flex; flex-direction: column; gap: 4px; }
-.runtime-card span, .agent-card span, .install-card span, .plan-card span { color: #64748b; font-size: 13px; }
-.runtime-card small, .install-card small, .plan-card small { color: #94a3b8; overflow-wrap: anywhere; }
-.runtime-card em, .plan-card em { color: #7c3aed; font-size: 12px; font-style: normal; }
+.runtime-card div, .agent-card div, .install-card div, .plan-card, .doctor-card, .event-card { display: flex; flex-direction: column; gap: 4px; }
+.runtime-card span, .agent-card span, .install-card span, .plan-card span, .doctor-card span, .event-card span { color: #64748b; font-size: 13px; }
+.runtime-card small, .install-card small, .plan-card small, .doctor-card small, .event-card small { color: #94a3b8; overflow-wrap: anywhere; }
+.runtime-card em, .plan-card em, .doctor-card em { color: #7c3aed; font-size: 12px; font-style: normal; }
 .filters, .actions { display: flex; gap: 10px; margin-bottom: 14px; }
 .filters input { flex: 1; }
 .filters select { width: 220px; }
 .agent-list { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; max-height: 560px; overflow: auto; padding-right: 4px; }
 .agent-card p { margin: 0; color: #475569; font-size: 13px; line-height: 1.45; }
 .field { display: flex; flex-direction: column; gap: 8px; margin-bottom: 14px; color: #475569; font-weight: 700; }
-.install-list { display: flex; flex-direction: column; gap: 10px; }
+.install-list, .event-list { display: flex; flex-direction: column; gap: 10px; max-height: 520px; overflow: auto; padding-right: 4px; }
 .install-card { justify-content: space-between; align-items: center; }
 .plan-panel { border-color: #bfdbfe; }
 .plan-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
 .plan-card { min-height: 160px; }
 .conflicts { margin-top: 16px; background: #fff7ed; border: 1px solid #fed7aa; border-radius: 16px; padding: 14px; }
 .conflicts p { margin: 6px 0; color: #9a3412; font-size: 13px; overflow-wrap: anywhere; }
+.doctor-panel { border-color: #c4b5fd; }
+.doctor-list { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; max-height: 440px; overflow: auto; padding-right: 4px; }
+.doctor-card.ok { border-color: #86efac; background: #f0fdf4; }
+.doctor-card.warning { border-color: #fde68a; background: #fffbeb; }
+.doctor-card.error, .event-card.error { border-color: #fecaca; background: #fef2f2; }
+.event-card.warn { border-color: #fde68a; background: #fffbeb; }
+.event-card.info { border-color: #bfdbfe; background: #eff6ff; }
+.json-preview { margin-top: 12px; background: #0f172a; color: #dbeafe; border-radius: 14px; padding: 14px; max-height: 260px; overflow: auto; }
