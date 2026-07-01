@@ -1,6 +1,6 @@
+use crate::adapters::GeneratedFile;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
-use std::process::Command;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
@@ -58,6 +58,37 @@ pub struct InstallTarget {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
+pub struct InstallPlan {
+    pub source_id: String,
+    pub total_agents: usize,
+    pub total_files: usize,
+    pub targets: Vec<RuntimeInstallPlan>,
+    pub conflicts: Vec<InstallConflict>,
+    pub warnings: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RuntimeInstallPlan {
+    pub runtime: RuntimeKind,
+    pub scope: InstallScope,
+    pub target_dirs: Vec<String>,
+    pub files_to_write: usize,
+    pub agents_to_install: usize,
+    pub post_actions: Vec<String>,
+    pub warnings: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct InstallConflict {
+    pub runtime: RuntimeKind,
+    pub path: String,
+    pub reason: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct InstallResult {
     pub runtime: RuntimeKind,
     pub installed_count: usize,
@@ -82,13 +113,55 @@ pub struct AgentInstallation {
     pub status: String,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct InstallBackup {
+    pub id: String,
+    pub installation_id: String,
+    pub runtime: RuntimeKind,
+    pub original_path: String,
+    pub backup_path: String,
+    pub created_at: i64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct InstallEvent {
+    pub id: String,
+    pub installation_id: Option<String>,
+    pub runtime: Option<RuntimeKind>,
+    pub level: String,
+    pub message: String,
+    pub created_at: i64,
+}
+
+#[derive(Debug, Clone)]
+pub struct RuntimeGeneratedFiles {
+    pub target_dirs: Vec<PathBuf>,
+    pub files: Vec<GeneratedFile>,
+}
+
 impl RuntimeKind {
     pub fn all() -> Vec<Self> {
         vec![
-            Self::ClaudeCode, Self::Copilot, Self::Antigravity, Self::GeminiCli, Self::OpenCode,
-            Self::OpenClaw, Self::Cursor, Self::Trae, Self::Aider, Self::Windsurf, Self::Qwen,
-            Self::Codex, Self::DeerFlow, Self::WorkBuddy, Self::CodeWhale, Self::Hermes,
-            Self::Kiro, Self::Qoder,
+            Self::ClaudeCode,
+            Self::Copilot,
+            Self::Antigravity,
+            Self::GeminiCli,
+            Self::OpenCode,
+            Self::OpenClaw,
+            Self::Cursor,
+            Self::Trae,
+            Self::Aider,
+            Self::Windsurf,
+            Self::Qwen,
+            Self::Codex,
+            Self::DeerFlow,
+            Self::WorkBuddy,
+            Self::CodeWhale,
+            Self::Hermes,
+            Self::Kiro,
+            Self::Qoder,
         ]
     }
 
@@ -117,8 +190,23 @@ impl RuntimeKind {
 
     pub fn scope(self) -> InstallScope {
         match self {
-            Self::ClaudeCode | Self::Copilot | Self::Antigravity | Self::GeminiCli | Self::OpenClaw | Self::WorkBuddy | Self::CodeWhale | Self::Hermes | Self::Kiro => InstallScope::Global,
-            Self::OpenCode | Self::Cursor | Self::Trae | Self::Aider | Self::Windsurf | Self::Qwen | Self::Codex | Self::Qoder => InstallScope::Project,
+            Self::ClaudeCode
+            | Self::Copilot
+            | Self::Antigravity
+            | Self::GeminiCli
+            | Self::OpenClaw
+            | Self::WorkBuddy
+            | Self::CodeWhale
+            | Self::Hermes
+            | Self::Kiro => InstallScope::Global,
+            Self::OpenCode
+            | Self::Cursor
+            | Self::Trae
+            | Self::Aider
+            | Self::Windsurf
+            | Self::Qwen
+            | Self::Codex
+            | Self::Qoder => InstallScope::Project,
             Self::DeerFlow => InstallScope::Custom,
         }
     }
@@ -133,42 +221,97 @@ impl RuntimeKind {
             Self::OpenClaw => home.join(".openclaw/agency-agents"),
             Self::WorkBuddy => home.join(".workbuddy/skills"),
             Self::CodeWhale => home.join(".codewhale/skills"),
-            Self::Hermes => std::env::var("HERMES_HOME").map(PathBuf::from).unwrap_or_else(|_| home.join(".hermes")).join("skills"),
+            Self::Hermes => std::env::var("HERMES_HOME")
+                .map(PathBuf::from)
+                .unwrap_or_else(|_| home.join(".hermes"))
+                .join("skills"),
             Self::Kiro => home.join(".kiro/agents"),
             _ => return None,
         })
     }
 
-    fn command_name(self) -> Option<&'static str> {
+    pub fn command_names(self) -> &'static [&'static str] {
         match self {
-            Self::ClaudeCode => Some("claude"), Self::Copilot => Some("code"), Self::GeminiCli => Some("gemini"),
-            Self::OpenCode => Some("opencode"), Self::OpenClaw => Some("openclaw"), Self::Cursor => Some("cursor"),
-            Self::Trae => Some("trae"), Self::Aider => Some("aider"), Self::Windsurf => Some("windsurf"), Self::Qwen => Some("qwen"),
-            Self::Codex => Some("codex"), Self::DeerFlow => Some("deerflow"), Self::WorkBuddy => Some("workbuddy"),
-            Self::CodeWhale => Some("codewhale"), Self::Hermes => Some("hermes"), Self::Kiro => Some("kiro"), Self::Qoder => Some("qoder"),
-            Self::Antigravity => None,
+            Self::ClaudeCode => &["claude"],
+            Self::Copilot => &["code"],
+            Self::Antigravity => &[],
+            Self::GeminiCli => &["gemini"],
+            Self::OpenCode => &["opencode"],
+            Self::OpenClaw => &["openclaw"],
+            Self::Cursor => &["cursor"],
+            Self::Trae => &["trae"],
+            Self::Aider => &["aider"],
+            Self::Windsurf => &["windsurf"],
+            Self::Qwen => &["qwen"],
+            Self::Codex => &["codex"],
+            Self::DeerFlow => &["deerflow"],
+            Self::WorkBuddy => &["workbuddy"],
+            Self::CodeWhale => &["codewhale"],
+            Self::Hermes => &["hermes"],
+            Self::Kiro => &["kiro", "kiro-cli"],
+            Self::Qoder => &["qoder"],
         }
     }
 }
 
-fn command_exists(command: &str) -> bool {
-    Command::new(command).arg("--version").output().is_ok()
+pub fn runtime_to_str(runtime: RuntimeKind) -> &'static str {
+    match runtime {
+        RuntimeKind::ClaudeCode => "claude-code",
+        RuntimeKind::Copilot => "copilot",
+        RuntimeKind::Antigravity => "antigravity",
+        RuntimeKind::GeminiCli => "gemini-cli",
+        RuntimeKind::OpenCode => "opencode",
+        RuntimeKind::OpenClaw => "openclaw",
+        RuntimeKind::Cursor => "cursor",
+        RuntimeKind::Trae => "trae",
+        RuntimeKind::Aider => "aider",
+        RuntimeKind::Windsurf => "windsurf",
+        RuntimeKind::Qwen => "qwen",
+        RuntimeKind::Codex => "codex",
+        RuntimeKind::DeerFlow => "deerflow",
+        RuntimeKind::WorkBuddy => "workbuddy",
+        RuntimeKind::CodeWhale => "codewhale",
+        RuntimeKind::Hermes => "hermes",
+        RuntimeKind::Kiro => "kiro",
+        RuntimeKind::Qoder => "qoder",
+    }
 }
 
-pub fn detect_all_runtimes() -> Vec<RuntimeDetection> {
-    RuntimeKind::all().into_iter().map(|kind| {
-        let command_detected = kind.command_name().is_some_and(command_exists);
-        let target = kind.default_target();
-        let dir_detected = target.as_ref().is_some_and(|path| path.exists());
-        RuntimeDetection {
-            kind,
-            label: kind.label().to_string(),
-            detected: command_detected || dir_detected,
-            scope: kind.scope(),
-            command_path: kind.command_name().map(str::to_string),
-            config_dir: target.as_ref().map(|path| path.display().to_string()),
-            default_target: target.map(|path| path.display().to_string()),
-            notes: Vec::new(),
-        }
-    }).collect()
+pub fn parse_runtime(value: &str) -> RuntimeKind {
+    match value {
+        "copilot" => RuntimeKind::Copilot,
+        "antigravity" => RuntimeKind::Antigravity,
+        "gemini-cli" => RuntimeKind::GeminiCli,
+        "opencode" => RuntimeKind::OpenCode,
+        "openclaw" => RuntimeKind::OpenClaw,
+        "cursor" => RuntimeKind::Cursor,
+        "trae" => RuntimeKind::Trae,
+        "aider" => RuntimeKind::Aider,
+        "windsurf" => RuntimeKind::Windsurf,
+        "qwen" => RuntimeKind::Qwen,
+        "codex" => RuntimeKind::Codex,
+        "deerflow" => RuntimeKind::DeerFlow,
+        "workbuddy" => RuntimeKind::WorkBuddy,
+        "codewhale" => RuntimeKind::CodeWhale,
+        "hermes" => RuntimeKind::Hermes,
+        "kiro" => RuntimeKind::Kiro,
+        "qoder" => RuntimeKind::Qoder,
+        _ => RuntimeKind::ClaudeCode,
+    }
+}
+
+pub fn scope_to_str(scope: InstallScope) -> &'static str {
+    match scope {
+        InstallScope::Global => "global",
+        InstallScope::Project => "project",
+        InstallScope::Custom => "custom",
+    }
+}
+
+pub fn parse_scope(value: &str) -> InstallScope {
+    match value {
+        "project" => InstallScope::Project,
+        "custom" => InstallScope::Custom,
+        _ => InstallScope::Global,
+    }
 }
