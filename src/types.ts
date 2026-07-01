@@ -19,6 +19,8 @@ export type RuntimeKind =
   | 'qoder'
 
 export type InstallScope = 'global' | 'project' | 'custom'
+export type DoctorStatus = 'ok' | 'warning' | 'error'
+export type DeepLinkAction = 'install-source' | 'install-agent' | 'install-bundle' | 'install-skill' | 'install-mcp' | 'handoff' | 'unknown'
 
 export interface LocalAgentSummary {
   id: string
@@ -102,6 +104,49 @@ export interface AgentInstallation {
   sourceCommit?: string | null
   installedAt: number
   status: string
+}
+
+export interface InstallBackup {
+  id: string
+  installationId: string
+  runtime: RuntimeKind
+  originalPath: string
+  backupPath: string
+  createdAt: number
+}
+
+export interface InstallEvent {
+  id: string
+  installationId?: string | null
+  runtime?: RuntimeKind | null
+  level: string
+  message: string
+  createdAt: number
+}
+
+export interface DoctorSummary {
+  ok: number
+  warning: number
+  error: number
+}
+
+export interface DoctorCheck {
+  id: string
+  label: string
+  status: DoctorStatus
+  message: string
+  remediation?: string | null
+}
+
+export interface DoctorReport {
+  summary: DoctorSummary
+  checks: DoctorCheck[]
+}
+
+export interface DeepLinkRequest {
+  rawUrl: string
+  action: DeepLinkAction
+  params: Record<string, string>
 }
 
 export interface SourceRefreshResult {
