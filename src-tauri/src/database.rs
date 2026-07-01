@@ -169,6 +169,44 @@ impl Database {
         Ok(rows.filter_map(Result::ok).collect())
     }
 
+    pub fn list_backups(&self) -> anyhow::Result<Vec<InstallBackup>> {
+        let conn = self.lock()?;
+        let mut stmt = conn.prepare("select id, installation_id, runtime, original_path, backup_path, created_at from install_backups order by created_at desc")?;
+        let rows = stmt.query_map([], |row| {
+            let runtime: String = row.get(2)?;
+            Ok(InstallBackup {
+                id: row.get(0)?,
+                installation_id: row.get(1)?,
+                runtime: parse_runtime(&runtime),
+                original_path: row.get(3)?,
+                backup_path: row.get(4)?,
+                created_at: row.get(5)?,
+            })
+        })?;
+        Ok(rows.filter_map(Result::ok).collect())
+    }
+
+    pub fn get_backup(&self, id: &str) -> anyhow::Result<Option<InstallBackup>> {
+        Ok(self.list_backups()?.into_iter().find(|backup| backup.id == id))
+    }
+
+    pub fn list_install_events(&self) -> anyhow::Result<Vec<InstallEvent>> {
+        let conn = self.lock()?;
+        let mut stmt = conn.prepare("select id, installation_id, runtime, level, message, created_at from install_events order by created_at desc limit 500")?;
+        let rows = stmt.query_map([], |row| {
+            let runtime: Option<String> = row.get(2)?;
+            Ok(InstallEvent {
+                id: row.get(0)?,
+                installation_id: row.get(1)?,
+                runtime: runtime.as_deref().map(parse_runtime),
+                level: row.get(3)?,
+                message: row.get(4)?,
+                created_at: row.get(5)?,
+            })
+        })?;
+        Ok(rows.filter_map(Result::ok).collect())
+    }
+
     pub fn get_installation(&self, id: &str) -> anyhow::Result<Option<AgentInstallation>> {
         Ok(self.list_installations()?.into_iter().find(|record| record.id == id))
     }
