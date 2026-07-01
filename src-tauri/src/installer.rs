@@ -1,8 +1,8 @@
 use crate::adapters::{self, GeneratedFile};
 use crate::domain::LocalAgent;
 use crate::runtime::{
-    AgentInstallation, InstallBackup, InstallConflict, InstallEvent, InstallPlan, InstallResult,
-    InstallTarget, RuntimeInstallPlan, RuntimeKind,
+    runtime_to_str, AgentInstallation, InstallBackup, InstallConflict, InstallEvent, InstallPlan,
+    InstallResult, InstallTarget, RuntimeInstallPlan, RuntimeKind,
 };
 use chrono::Utc;
 use std::fs;
@@ -76,13 +76,17 @@ pub fn install_target(
     let files = adapters::generate_files(agents, target);
     let target_dirs = adapters::target_dirs(target)?;
     let backup_root = app_data_dir.join("installations").join("backups").join(&install_id);
+    let generated_root = generated_root(app_data_dir, started_at, target.runtime);
     fs::create_dir_all(&backup_root)?;
+    fs::create_dir_all(&generated_root)?;
 
     let mut backups = Vec::new();
     let mut written = Vec::new();
     let mut events = vec![event(None, Some(target.runtime), "info", format!("starting install for {} agents", agents.len()))];
 
     let result = (|| -> anyhow::Result<()> {
+        cache_generated_artifacts(&generated_root, &files)?;
+        events.push(event(None, Some(target.runtime), "info", format!("cached generated artifacts at {}", generated_root.display())));
         for dir in &target_dirs {
             fs::create_dir_all(dir)?;
             for file in &files {
@@ -161,6 +165,43 @@ pub fn remove_installation(record: &AgentInstallation) -> anyhow::Result<()> {
         }
     }
     Ok(())
+}
+
+pub fn restore_backup(backup: &InstallBackup) -> anyhow::Result<InstallEvent> {
+    let original = PathBuf::from(&backup.original_path);
+    let backup_path = PathBuf::from(&backup.backup_path);
+    if !backup_path.exists() {
+        anyhow::bail!("backup does not exist: {}", backup.backup_path);
+    }
+    if let Some(parent) = original.parent() {
+        fs::create_dir_all(parent)?;
+    }
+    fs::copy(&backup_path, &original)?;
+    Ok(event(
+        Some(backup.installation_id.clone()),
+        Some(backup.runtime),
+        "info",
+        format!("restored backup {} -> {}", backup.backup_path, backup.original_path),
+    ))
+}
+
+fn cache_generated_artifacts(root: &Path, files: &[GeneratedFile]) -> anyhow::Result<()> {
+    for file in files {
+        let dest = safe_join(root, &file.relative_path)?;
+        if let Some(parent) = dest.parent() {
+            fs::create_dir_all(parent)?;
+        }
+        write_atomic(&dest, &file.content)?;
+    }
+    Ok(())
+}
+
+fn generated_root(app_data_dir: &Path, timestamp: i64, runtime: RuntimeKind) -> PathBuf {
+    app_data_dir
+        .join("generated")
+        .join("agency-agents-zh")
+        .join(timestamp.to_string())
+        .join(runtime_to_str(runtime))
 }
 
 fn safe_join(base: &Path, relative: &str) -> anyhow::Result<PathBuf> {
