@@ -29,6 +29,16 @@ export interface LocalAgentSummary {
   sourcePath: string
 }
 
+export interface RuntimeDefinition {
+  kind: RuntimeKind
+  label: string
+  scope: InstallScope
+  requiresProjectDir: boolean
+  supportsUninstall: boolean
+  supportsNativeRegistration: boolean
+  defaultTarget?: string | null
+}
+
 export interface RuntimeDetection {
   kind: RuntimeKind
   label: string
@@ -45,6 +55,31 @@ export interface InstallTarget {
   projectDir?: string | null
   customDir?: string | null
   categoryFilters?: string[]
+}
+
+export interface RuntimeInstallPlan {
+  runtime: RuntimeKind
+  scope: InstallScope
+  targetDirs: string[]
+  filesToWrite: number
+  agentsToInstall: number
+  postActions: string[]
+  warnings: string[]
+}
+
+export interface InstallConflict {
+  runtime: RuntimeKind
+  path: string
+  reason: string
+}
+
+export interface InstallPlan {
+  sourceId: string
+  totalAgents: number
+  totalFiles: number
+  targets: RuntimeInstallPlan[]
+  conflicts: InstallConflict[]
+  warnings: string[]
 }
 
 export interface InstallResult {
