@@ -15,7 +15,7 @@ pub struct GeneratedFile {
 #[serde(rename_all = "camelCase")]
 pub struct RuntimeDefinition {
     pub kind: RuntimeKind,
-    pub label: &'static str,
+    pub label: String,
     pub scope: InstallScope,
     pub requires_project_dir: bool,
     pub supports_uninstall: bool,
@@ -28,7 +28,7 @@ pub fn runtime_definitions() -> Vec<RuntimeDefinition> {
         .into_iter()
         .map(|kind| RuntimeDefinition {
             kind,
-            label: kind.label(),
+            label: kind.label().to_string(),
             scope: kind.scope(),
             requires_project_dir: matches!(kind.scope(), InstallScope::Project),
             supports_uninstall: true,
@@ -80,7 +80,10 @@ fn resolve_command(name: &str) -> Option<String> {
     } else {
         Command::new("sh").arg("-c").arg(format!("command -v {name}")).output().ok()?
     };
-    output.status.success().then(|| String::from_utf8_lossy(&output.stdout).lines().next().unwrap_or(name).trim().to_string())
+    output
+        .status
+        .success()
+        .then(|| String::from_utf8_lossy(&output.stdout).lines().next().unwrap_or(name).trim().to_string())
 }
 
 pub fn target_dirs(target: &InstallTarget) -> anyhow::Result<Vec<PathBuf>> {
@@ -93,10 +96,16 @@ pub fn target_dirs(target: &InstallTarget) -> anyhow::Result<Vec<PathBuf>> {
                 let home = home_dir()?;
                 return Ok(vec![home.join(".github/agents"), home.join(".copilot/agents")]);
             }
-            Ok(vec![target.runtime.default_target().ok_or_else(|| anyhow::anyhow!("missing default target for {:?}", target.runtime))?])
+            Ok(vec![target
+                .runtime
+                .default_target()
+                .ok_or_else(|| anyhow::anyhow!("missing default target for {:?}", target.runtime))?])
         }
         InstallScope::Project => {
-            let project = target.project_dir.as_ref().ok_or_else(|| anyhow::anyhow!("projectDir is required for {:?}", target.runtime))?;
+            let project = target
+                .project_dir
+                .as_ref()
+                .ok_or_else(|| anyhow::anyhow!("projectDir is required for {:?}", target.runtime))?;
             let base = PathBuf::from(project);
             Ok(vec![match target.runtime {
                 RuntimeKind::OpenCode => base.join(".opencode/agents"),
@@ -111,7 +120,9 @@ pub fn target_dirs(target: &InstallTarget) -> anyhow::Result<Vec<PathBuf>> {
             }])
         }
         InstallScope::Custom => {
-            let path = target.custom_dir.clone()
+            let path = target
+                .custom_dir
+                .clone()
                 .or_else(|| std::env::var("DEERFLOW_SKILLS_DIR").ok())
                 .unwrap_or_else(|| "./skills/custom".to_string());
             Ok(vec![PathBuf::from(path)])
