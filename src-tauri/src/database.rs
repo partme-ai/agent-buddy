@@ -1,8 +1,10 @@
+use crate::audit::{parse_severity, severity_to_str, AuditEvent};
 use crate::domain::SourceRefreshResult;
 use crate::runtime::{
     parse_runtime, parse_scope, runtime_to_str, scope_to_str, AgentInstallation, InstallBackup,
     InstallEvent, RuntimeDetection,
 };
+use crate::sync::{parse_status, status_to_str, SyncOutboxEvent};
 use rusqlite::{params, Connection};
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
@@ -72,6 +74,31 @@ impl Database {
               level text not null,
               message text not null,
               created_at integer not null
+            );
+
+            create table if not exists audit_events (
+              id text primary key,
+              actor text not null,
+              action text not null,
+              resource_type text not null,
+              resource_id text not null,
+              runtime text,
+              severity text not null,
+              message text not null,
+              metadata_json text not null,
+              created_at integer not null
+            );
+
+            create table if not exists sync_outbox (
+              id text primary key,
+              aggregate_type text not null,
+              aggregate_id text not null,
+              event_type text not null,
+              payload_json text not null,
+              status text not null,
+              retry_count integer not null,
+              created_at integer not null,
+              updated_at integer not null
             );
             "#,
         )?;
@@ -145,6 +172,25 @@ impl Database {
         Ok(())
     }
 
+    pub fn save_audit_event(&self, event: &AuditEvent) -> anyhow::Result<()> {
+        let conn = self.lock()?;
+        let runtime = event.runtime.map(runtime_to_str);
+        conn.execute(
+            "insert or replace into audit_events (id, actor, action, resource_type, resource_id, runtime, severity, message, metadata_json, created_at) values (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)",
+            params![event.id, event.actor, event.action, event.resource_type, event.resource_id, runtime, severity_to_str(event.severity), event.message, event.metadata_json, event.created_at],
+        )?;
+        Ok(())
+    }
+
+    pub fn save_sync_outbox_event(&self, event: &SyncOutboxEvent) -> anyhow::Result<()> {
+        let conn = self.lock()?;
+        conn.execute(
+            "insert or replace into sync_outbox (id, aggregate_type, aggregate_id, event_type, payload_json, status, retry_count, created_at, updated_at) values (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
+            params![event.id, event.aggregate_type, event.aggregate_id, event.event_type, event.payload_json, status_to_str(event.status), event.retry_count, event.created_at, event.updated_at],
+        )?;
+        Ok(())
+    }
+
     pub fn list_installations(&self) -> anyhow::Result<Vec<AgentInstallation>> {
         let conn = self.lock()?;
         let mut stmt = conn.prepare("select id, source_id, agent_id, runtime, scope, project_dir, target_path, installed_files_json, source_commit, installed_at, status from agent_installations order by installed_at desc")?;
@@ -202,6 +248,48 @@ impl Database {
                 level: row.get(3)?,
                 message: row.get(4)?,
                 created_at: row.get(5)?,
+            })
+        })?;
+        Ok(rows.filter_map(Result::ok).collect())
+    }
+
+    pub fn list_audit_events(&self) -> anyhow::Result<Vec<AuditEvent>> {
+        let conn = self.lock()?;
+        let mut stmt = conn.prepare("select id, actor, action, resource_type, resource_id, runtime, severity, message, metadata_json, created_at from audit_events order by created_at desc limit 500")?;
+        let rows = stmt.query_map([], |row| {
+            let runtime: Option<String> = row.get(5)?;
+            let severity: String = row.get(6)?;
+            Ok(AuditEvent {
+                id: row.get(0)?,
+                actor: row.get(1)?,
+                action: row.get(2)?,
+                resource_type: row.get(3)?,
+                resource_id: row.get(4)?,
+                runtime: runtime.as_deref().map(parse_runtime),
+                severity: parse_severity(&severity),
+                message: row.get(7)?,
+                metadata_json: row.get(8)?,
+                created_at: row.get(9)?,
+            })
+        })?;
+        Ok(rows.filter_map(Result::ok).collect())
+    }
+
+    pub fn list_sync_outbox(&self) -> anyhow::Result<Vec<SyncOutboxEvent>> {
+        let conn = self.lock()?;
+        let mut stmt = conn.prepare("select id, aggregate_type, aggregate_id, event_type, payload_json, status, retry_count, created_at, updated_at from sync_outbox order by created_at desc limit 500")?;
+        let rows = stmt.query_map([], |row| {
+            let status: String = row.get(5)?;
+            Ok(SyncOutboxEvent {
+                id: row.get(0)?,
+                aggregate_type: row.get(1)?,
+                aggregate_id: row.get(2)?,
+                event_type: row.get(3)?,
+                payload_json: row.get(4)?,
+                status: parse_status(&status),
+                retry_count: row.get(6)?,
+                created_at: row.get(7)?,
+                updated_at: row.get(8)?,
             })
         })?;
         Ok(rows.filter_map(Result::ok).collect())
