@@ -1,9 +1,17 @@
 use crate::audit::{parse_severity, severity_to_str, AuditEvent};
 use crate::domain::SourceRefreshResult;
+use crate::knowledge::{KnowledgeSnapshot, KnowledgeSpace};
+use crate::memory::{
+    parse_scope as parse_memory_scope, parse_status as parse_memory_status,
+    parse_type as parse_memory_type, scope_to_str as memory_scope_to_str,
+    status_to_str as memory_status_to_str, type_to_str as memory_type_to_str, MemoryCandidate,
+    MemoryItem,
+};
 use crate::runtime::{
     parse_runtime, parse_scope, runtime_to_str, scope_to_str, AgentInstallation, InstallBackup,
     InstallEvent, RuntimeDetection,
 };
+use crate::session::{event_type_to_str, parse_event_type, HandoffPack, SessionEvent};
 use crate::sync::{parse_status, status_to_str, SyncOutboxEvent};
 use rusqlite::{params, Connection};
 use std::path::{Path, PathBuf};
@@ -100,6 +108,71 @@ impl Database {
               created_at integer not null,
               updated_at integer not null
             );
+
+            create table if not exists memory_items (
+              id text primary key,
+              scope text not null,
+              memory_type text not null,
+              title text not null,
+              content text not null,
+              source text not null,
+              status text not null,
+              created_at integer not null,
+              updated_at integer not null
+            );
+
+            create table if not exists memory_candidates (
+              id text primary key,
+              scope text not null,
+              memory_type text not null,
+              content text not null,
+              source_session_id text,
+              confidence real not null,
+              status text not null,
+              created_at integer not null
+            );
+
+            create table if not exists knowledge_spaces (
+              id text primary key,
+              name text not null,
+              description text not null,
+              source text not null,
+              sync_mode text not null,
+              document_count integer not null,
+              created_at integer not null,
+              updated_at integer not null
+            );
+
+            create table if not exists knowledge_snapshots (
+              id text primary key,
+              space_id text not null,
+              version text not null,
+              manifest_path text not null,
+              status text not null,
+              created_at integer not null
+            );
+
+            create table if not exists session_events (
+              id text primary key,
+              session_id text not null,
+              runtime text,
+              event_type text not null,
+              payload_json text not null,
+              created_at integer not null
+            );
+
+            create table if not exists handoff_packs (
+              id text primary key,
+              from_runtime text,
+              to_runtime text,
+              session_id text not null,
+              goal text not null,
+              summary text not null,
+              knowledge_refs_json text not null,
+              memory_refs_json text not null,
+              open_tasks_json text not null,
+              created_at integer not null
+            );
             "#,
         )?;
         Ok(Self { conn: Mutex::new(conn) })
@@ -118,16 +191,7 @@ impl Database {
         let conn = self.lock()?;
         conn.execute(
             "insert or replace into runtime_detections (runtime, label, detected, scope, command_path, config_dir, default_target, notes_json, checked_at) values (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, strftime('%s','now'))",
-            params![
-                runtime_to_str(detection.kind),
-                detection.label,
-                detection.detected as i32,
-                scope_to_str(detection.scope),
-                detection.command_path,
-                detection.config_dir,
-                detection.default_target,
-                serde_json::to_string(&detection.notes)?
-            ],
+            params![runtime_to_str(detection.kind), detection.label, detection.detected as i32, scope_to_str(detection.scope), detection.command_path, detection.config_dir, detection.default_target, serde_json::to_string(&detection.notes)?],
         )?;
         Ok(())
     }
@@ -136,19 +200,7 @@ impl Database {
         let conn = self.lock()?;
         conn.execute(
             "insert or replace into agent_installations (id, source_id, agent_id, runtime, scope, project_dir, target_path, installed_files_json, source_commit, installed_at, status) values (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)",
-            params![
-                record.id,
-                record.source_id,
-                record.agent_id,
-                runtime_to_str(record.runtime),
-                scope_to_str(record.scope),
-                record.project_dir,
-                record.target_path,
-                serde_json::to_string(&record.installed_files)?,
-                record.source_commit,
-                record.installed_at,
-                record.status
-            ],
+            params![record.id, record.source_id, record.agent_id, runtime_to_str(record.runtime), scope_to_str(record.scope), record.project_dir, record.target_path, serde_json::to_string(&record.installed_files)?, record.source_commit, record.installed_at, record.status],
         )?;
         Ok(())
     }
@@ -191,6 +243,63 @@ impl Database {
         Ok(())
     }
 
+    pub fn save_memory_candidate(&self, candidate: &MemoryCandidate) -> anyhow::Result<()> {
+        let conn = self.lock()?;
+        conn.execute(
+            "insert or replace into memory_candidates (id, scope, memory_type, content, source_session_id, confidence, status, created_at) values (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
+            params![candidate.id, memory_scope_to_str(candidate.scope), memory_type_to_str(candidate.memory_type), candidate.content, candidate.source_session_id, candidate.confidence, memory_status_to_str(candidate.status), candidate.created_at],
+        )?;
+        Ok(())
+    }
+
+    pub fn save_memory_item(&self, item: &MemoryItem) -> anyhow::Result<()> {
+        let conn = self.lock()?;
+        conn.execute(
+            "insert or replace into memory_items (id, scope, memory_type, title, content, source, status, created_at, updated_at) values (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
+            params![item.id, memory_scope_to_str(item.scope), memory_type_to_str(item.memory_type), item.title, item.content, item.source, memory_status_to_str(item.status), item.created_at, item.updated_at],
+        )?;
+        Ok(())
+    }
+
+    pub fn save_knowledge_space(&self, space: &KnowledgeSpace) -> anyhow::Result<()> {
+        let conn = self.lock()?;
+        conn.execute(
+            "insert or replace into knowledge_spaces (id, name, description, source, sync_mode, document_count, created_at, updated_at) values (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
+            params![space.id, space.name, space.description, space.source, space.sync_mode, space.document_count, space.created_at, space.updated_at],
+        )?;
+        Ok(())
+    }
+
+    pub fn save_knowledge_snapshot(&self, snapshot: &KnowledgeSnapshot) -> anyhow::Result<()> {
+        let conn = self.lock()?;
+        conn.execute(
+            "insert or replace into knowledge_snapshots (id, space_id, version, manifest_path, status, created_at) values (?1, ?2, ?3, ?4, ?5, ?6)",
+            params![snapshot.id, snapshot.space_id, snapshot.version, snapshot.manifest_path, snapshot.status, snapshot.created_at],
+        )?;
+        Ok(())
+    }
+
+    pub fn save_session_event(&self, event: &SessionEvent) -> anyhow::Result<()> {
+        let conn = self.lock()?;
+        let runtime = event.runtime.map(runtime_to_str);
+        conn.execute(
+            "insert or replace into session_events (id, session_id, runtime, event_type, payload_json, created_at) values (?1, ?2, ?3, ?4, ?5, ?6)",
+            params![event.id, event.session_id, runtime, event_type_to_str(event.event_type), event.payload_json, event.created_at],
+        )?;
+        Ok(())
+    }
+
+    pub fn save_handoff_pack(&self, handoff: &HandoffPack) -> anyhow::Result<()> {
+        let conn = self.lock()?;
+        let from_runtime = handoff.from_runtime.map(runtime_to_str);
+        let to_runtime = handoff.to_runtime.map(runtime_to_str);
+        conn.execute(
+            "insert or replace into handoff_packs (id, from_runtime, to_runtime, session_id, goal, summary, knowledge_refs_json, memory_refs_json, open_tasks_json, created_at) values (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)",
+            params![handoff.id, from_runtime, to_runtime, handoff.session_id, handoff.goal, handoff.summary, serde_json::to_string(&handoff.knowledge_refs)?, serde_json::to_string(&handoff.memory_refs)?, serde_json::to_string(&handoff.open_tasks)?, handoff.created_at],
+        )?;
+        Ok(())
+    }
+
     pub fn list_installations(&self) -> anyhow::Result<Vec<AgentInstallation>> {
         let conn = self.lock()?;
         let mut stmt = conn.prepare("select id, source_id, agent_id, runtime, scope, project_dir, target_path, installed_files_json, source_commit, installed_at, status from agent_installations order by installed_at desc")?;
@@ -198,19 +307,7 @@ impl Database {
             let runtime: String = row.get(3)?;
             let scope: String = row.get(4)?;
             let files_json: String = row.get(7)?;
-            Ok(AgentInstallation {
-                id: row.get(0)?,
-                source_id: row.get(1)?,
-                agent_id: row.get(2)?,
-                runtime: parse_runtime(&runtime),
-                scope: parse_scope(&scope),
-                project_dir: row.get(5)?,
-                target_path: row.get(6)?,
-                installed_files: serde_json::from_str(&files_json).unwrap_or_default(),
-                source_commit: row.get(8)?,
-                installed_at: row.get(9)?,
-                status: row.get(10)?,
-            })
+            Ok(AgentInstallation { id: row.get(0)?, source_id: row.get(1)?, agent_id: row.get(2)?, runtime: parse_runtime(&runtime), scope: parse_scope(&scope), project_dir: row.get(5)?, target_path: row.get(6)?, installed_files: serde_json::from_str(&files_json).unwrap_or_default(), source_commit: row.get(8)?, installed_at: row.get(9)?, status: row.get(10)? })
         })?;
         Ok(rows.filter_map(Result::ok).collect())
     }
@@ -220,14 +317,7 @@ impl Database {
         let mut stmt = conn.prepare("select id, installation_id, runtime, original_path, backup_path, created_at from install_backups order by created_at desc")?;
         let rows = stmt.query_map([], |row| {
             let runtime: String = row.get(2)?;
-            Ok(InstallBackup {
-                id: row.get(0)?,
-                installation_id: row.get(1)?,
-                runtime: parse_runtime(&runtime),
-                original_path: row.get(3)?,
-                backup_path: row.get(4)?,
-                created_at: row.get(5)?,
-            })
+            Ok(InstallBackup { id: row.get(0)?, installation_id: row.get(1)?, runtime: parse_runtime(&runtime), original_path: row.get(3)?, backup_path: row.get(4)?, created_at: row.get(5)? })
         })?;
         Ok(rows.filter_map(Result::ok).collect())
     }
@@ -241,14 +331,7 @@ impl Database {
         let mut stmt = conn.prepare("select id, installation_id, runtime, level, message, created_at from install_events order by created_at desc limit 500")?;
         let rows = stmt.query_map([], |row| {
             let runtime: Option<String> = row.get(2)?;
-            Ok(InstallEvent {
-                id: row.get(0)?,
-                installation_id: row.get(1)?,
-                runtime: runtime.as_deref().map(parse_runtime),
-                level: row.get(3)?,
-                message: row.get(4)?,
-                created_at: row.get(5)?,
-            })
+            Ok(InstallEvent { id: row.get(0)?, installation_id: row.get(1)?, runtime: runtime.as_deref().map(parse_runtime), level: row.get(3)?, message: row.get(4)?, created_at: row.get(5)? })
         })?;
         Ok(rows.filter_map(Result::ok).collect())
     }
@@ -259,18 +342,7 @@ impl Database {
         let rows = stmt.query_map([], |row| {
             let runtime: Option<String> = row.get(5)?;
             let severity: String = row.get(6)?;
-            Ok(AuditEvent {
-                id: row.get(0)?,
-                actor: row.get(1)?,
-                action: row.get(2)?,
-                resource_type: row.get(3)?,
-                resource_id: row.get(4)?,
-                runtime: runtime.as_deref().map(parse_runtime),
-                severity: parse_severity(&severity),
-                message: row.get(7)?,
-                metadata_json: row.get(8)?,
-                created_at: row.get(9)?,
-            })
+            Ok(AuditEvent { id: row.get(0)?, actor: row.get(1)?, action: row.get(2)?, resource_type: row.get(3)?, resource_id: row.get(4)?, runtime: runtime.as_deref().map(parse_runtime), severity: parse_severity(&severity), message: row.get(7)?, metadata_json: row.get(8)?, created_at: row.get(9)? })
         })?;
         Ok(rows.filter_map(Result::ok).collect())
     }
@@ -280,17 +352,70 @@ impl Database {
         let mut stmt = conn.prepare("select id, aggregate_type, aggregate_id, event_type, payload_json, status, retry_count, created_at, updated_at from sync_outbox order by created_at desc limit 500")?;
         let rows = stmt.query_map([], |row| {
             let status: String = row.get(5)?;
-            Ok(SyncOutboxEvent {
-                id: row.get(0)?,
-                aggregate_type: row.get(1)?,
-                aggregate_id: row.get(2)?,
-                event_type: row.get(3)?,
-                payload_json: row.get(4)?,
-                status: parse_status(&status),
-                retry_count: row.get(6)?,
-                created_at: row.get(7)?,
-                updated_at: row.get(8)?,
-            })
+            Ok(SyncOutboxEvent { id: row.get(0)?, aggregate_type: row.get(1)?, aggregate_id: row.get(2)?, event_type: row.get(3)?, payload_json: row.get(4)?, status: parse_status(&status), retry_count: row.get(6)?, created_at: row.get(7)?, updated_at: row.get(8)? })
+        })?;
+        Ok(rows.filter_map(Result::ok).collect())
+    }
+
+    pub fn list_memory_items(&self) -> anyhow::Result<Vec<MemoryItem>> {
+        let conn = self.lock()?;
+        let mut stmt = conn.prepare("select id, scope, memory_type, title, content, source, status, created_at, updated_at from memory_items order by updated_at desc limit 500")?;
+        let rows = stmt.query_map([], |row| {
+            let scope: String = row.get(1)?;
+            let memory_type: String = row.get(2)?;
+            let status: String = row.get(6)?;
+            Ok(MemoryItem { id: row.get(0)?, scope: parse_memory_scope(&scope), memory_type: parse_memory_type(&memory_type), title: row.get(3)?, content: row.get(4)?, source: row.get(5)?, status: parse_memory_status(&status), created_at: row.get(7)?, updated_at: row.get(8)? })
+        })?;
+        Ok(rows.filter_map(Result::ok).collect())
+    }
+
+    pub fn list_memory_candidates(&self) -> anyhow::Result<Vec<MemoryCandidate>> {
+        let conn = self.lock()?;
+        let mut stmt = conn.prepare("select id, scope, memory_type, content, source_session_id, confidence, status, created_at from memory_candidates order by created_at desc limit 500")?;
+        let rows = stmt.query_map([], |row| {
+            let scope: String = row.get(1)?;
+            let memory_type: String = row.get(2)?;
+            let status: String = row.get(6)?;
+            Ok(MemoryCandidate { id: row.get(0)?, scope: parse_memory_scope(&scope), memory_type: parse_memory_type(&memory_type), content: row.get(3)?, source_session_id: row.get(4)?, confidence: row.get(5)?, status: parse_memory_status(&status), created_at: row.get(7)? })
+        })?;
+        Ok(rows.filter_map(Result::ok).collect())
+    }
+
+    pub fn list_knowledge_spaces(&self) -> anyhow::Result<Vec<KnowledgeSpace>> {
+        let conn = self.lock()?;
+        let mut stmt = conn.prepare("select id, name, description, source, sync_mode, document_count, created_at, updated_at from knowledge_spaces order by updated_at desc")?;
+        let rows = stmt.query_map([], |row| Ok(KnowledgeSpace { id: row.get(0)?, name: row.get(1)?, description: row.get(2)?, source: row.get(3)?, sync_mode: row.get(4)?, document_count: row.get(5)?, created_at: row.get(6)?, updated_at: row.get(7)? }))?;
+        Ok(rows.filter_map(Result::ok).collect())
+    }
+
+    pub fn list_knowledge_snapshots(&self) -> anyhow::Result<Vec<KnowledgeSnapshot>> {
+        let conn = self.lock()?;
+        let mut stmt = conn.prepare("select id, space_id, version, manifest_path, status, created_at from knowledge_snapshots order by created_at desc")?;
+        let rows = stmt.query_map([], |row| Ok(KnowledgeSnapshot { id: row.get(0)?, space_id: row.get(1)?, version: row.get(2)?, manifest_path: row.get(3)?, status: row.get(4)?, created_at: row.get(5)? }))?;
+        Ok(rows.filter_map(Result::ok).collect())
+    }
+
+    pub fn list_session_events(&self) -> anyhow::Result<Vec<SessionEvent>> {
+        let conn = self.lock()?;
+        let mut stmt = conn.prepare("select id, session_id, runtime, event_type, payload_json, created_at from session_events order by created_at desc limit 500")?;
+        let rows = stmt.query_map([], |row| {
+            let runtime: Option<String> = row.get(2)?;
+            let event_type: String = row.get(3)?;
+            Ok(SessionEvent { id: row.get(0)?, session_id: row.get(1)?, runtime: runtime.as_deref().map(parse_runtime), event_type: parse_event_type(&event_type), payload_json: row.get(4)?, created_at: row.get(5)? })
+        })?;
+        Ok(rows.filter_map(Result::ok).collect())
+    }
+
+    pub fn list_handoff_packs(&self) -> anyhow::Result<Vec<HandoffPack>> {
+        let conn = self.lock()?;
+        let mut stmt = conn.prepare("select id, from_runtime, to_runtime, session_id, goal, summary, knowledge_refs_json, memory_refs_json, open_tasks_json, created_at from handoff_packs order by created_at desc limit 200")?;
+        let rows = stmt.query_map([], |row| {
+            let from_runtime: Option<String> = row.get(1)?;
+            let to_runtime: Option<String> = row.get(2)?;
+            let knowledge_refs_json: String = row.get(6)?;
+            let memory_refs_json: String = row.get(7)?;
+            let open_tasks_json: String = row.get(8)?;
+            Ok(HandoffPack { id: row.get(0)?, from_runtime: from_runtime.as_deref().map(parse_runtime), to_runtime: to_runtime.as_deref().map(parse_runtime), session_id: row.get(3)?, goal: row.get(4)?, summary: row.get(5)?, knowledge_refs: serde_json::from_str(&knowledge_refs_json).unwrap_or_default(), memory_refs: serde_json::from_str(&memory_refs_json).unwrap_or_default(), open_tasks: serde_json::from_str(&open_tasks_json).unwrap_or_default(), created_at: row.get(9)? })
         })?;
         Ok(rows.filter_map(Result::ok).collect())
     }
