@@ -6,6 +6,7 @@ import type {
   AgentInstallation,
   ApprovalRequest,
   AuditEvent,
+  BuddyStatusReport,
   BundlePullRequest,
   DeepLinkRequest,
   DeviceRegistrationRequest,
@@ -18,17 +19,24 @@ import type {
   InstallPlan,
   InstallResult,
   InstallTarget,
+  KnowledgeContextPack,
+  KnowledgeMirrorPlan,
   KnowledgeSnapshot,
   KnowledgeSpace,
   LifecyclePlan,
   LocalAgentSummary,
   LocalApiSpec,
+  MarketplaceSource,
   McpConfigPlan,
+  McpInstallPlan,
+  McpInstallRequest,
   McpServerConfig,
   MemoryCandidate,
+  MemoryInitPlan,
   MemoryItem,
   MemoryScope,
   MemoryType,
+  MemoryWritebackPlan,
   PaasBundleSummary,
   PaasConnectionInfo,
   PaasConnectionStatus,
@@ -42,6 +50,9 @@ import type {
   RuntimeKind,
   SessionEvent,
   SessionEventType,
+  SessionSyncPlan,
+  SkillInstallPlan,
+  SkillInstallRequest,
   SkillPackage,
   SkillTargetPath,
   SourceRefreshResult,
@@ -65,11 +76,15 @@ export function summarizeLocalBundles(agentIds: string[]): Promise<PaasBundleSum
 export function buildBundleDiff(oldAgentId: string, newAgentId: string): Promise<AgentBundleDiff> { return invoke('build_bundle_diff', { oldAgentId, newAgentId }) }
 export function runtimeDefinitions(): Promise<RuntimeDefinition[]> { return invoke('runtime_definitions') }
 export function detectRuntimes(): Promise<RuntimeDetection[]> { return invoke('detect_runtimes') }
+export function buildBuddyStatusReport(): Promise<BuddyStatusReport> { return invoke('build_buddy_status_report') }
 export function listLocalApiSpec(): Promise<LocalApiSpec> { return invoke('list_local_api_spec') }
 export function getInstallPlan(agentIds: string[], targets: InstallTarget[]): Promise<InstallPlan> { return invoke('get_install_plan', { agentIds, targets }) }
 export function buildInstructionInjectionPlan(agentId: string, runtime: RuntimeKind, projectDir?: string | null): Promise<InstructionInjectionPlan> { return invoke('build_instruction_injection_plan', { agentId, runtime, projectDir: projectDir ?? null }) }
 export function buildMcpConfigPlan(runtime: RuntimeKind, projectDir?: string | null): Promise<McpConfigPlan> { return invoke('build_mcp_config_plan', { runtime, projectDir: projectDir ?? null }) }
 export function buildRuntimeMcpConfigPreview(runtime: RuntimeKind): Promise<RuntimeConfigPreview> { return invoke('build_runtime_mcp_config_preview', { runtime }) }
+export function listMarketplaceSources(): Promise<MarketplaceSource[]> { return invoke('list_marketplace_sources') }
+export function buildSkillInstallPlan(request: SkillInstallRequest): Promise<SkillInstallPlan> { return invoke('build_skill_install_plan', { request }) }
+export function buildMarketplaceMcpInstallPlan(request: McpInstallRequest): Promise<McpInstallPlan> { return invoke('build_marketplace_mcp_install_plan', { request }) }
 export function installAgents(agentIds: string[], targets: InstallTarget[]): Promise<InstallResult[]> { return invoke('install_agents', { agentIds, targets }) }
 export function listInstallations(): Promise<AgentInstallation[]> { return invoke('list_installations') }
 export function listInstallBackups(): Promise<InstallBackup[]> { return invoke('list_install_backups') }
@@ -97,11 +112,19 @@ export function initializeDefaultKnowledgeSpaces(): Promise<KnowledgeSpace[]> { 
 export function listKnowledgeSpaces(): Promise<KnowledgeSpace[]> { return invoke('list_knowledge_spaces') }
 export function listKnowledgeSnapshots(): Promise<KnowledgeSnapshot[]> { return invoke('list_knowledge_snapshots') }
 export function createKnowledgeSnapshot(spaceId: string, version: string, manifestPath: string): Promise<KnowledgeSnapshot> { return invoke('create_knowledge_snapshot', { spaceId, version, manifestPath }) }
+export function buildWikiMirrorPlan(spaceId: string): Promise<KnowledgeMirrorPlan> { return invoke('build_wiki_mirror_plan', { spaceId }) }
+export function buildRagMirrorPlan(spaceId: string): Promise<KnowledgeMirrorPlan> { return invoke('build_rag_mirror_plan', { spaceId }) }
+export function buildKnowledgeContextPack(query: string, spaceIds: string[]): Promise<KnowledgeContextPack> { return invoke('build_knowledge_context_pack', { query, spaceIds }) }
+
 export function listMemoryItems(): Promise<MemoryItem[]> { return invoke('list_memory_items') }
 export function listMemoryCandidates(): Promise<MemoryCandidate[]> { return invoke('list_memory_candidates') }
 export function proposeMemory(content: string, scope: MemoryScope, memoryType: MemoryType, sourceSessionId?: string | null): Promise<MemoryCandidate> { return invoke('propose_memory', { content, scope, memoryType, sourceSessionId: sourceSessionId ?? null }) }
 export function approveMemoryCandidate(candidateId: string, title: string): Promise<MemoryItem> { return invoke('approve_memory_candidate', { candidateId, title }) }
+export function buildMemoryInitPlan(scopes: MemoryScope[]): Promise<MemoryInitPlan> { return invoke('build_memory_init_plan', { scopes }) }
+export function buildMemoryWritebackPlan(): Promise<MemoryWritebackPlan> { return invoke('build_memory_writeback_plan') }
+
 export function appendSessionEvent(sessionId: string, runtime: RuntimeKind | null, eventType: SessionEventType, payloadJson: string): Promise<SessionEvent> { return invoke('append_session_event', { sessionId, runtime, eventType, payloadJson }) }
 export function listSessionEvents(): Promise<SessionEvent[]> { return invoke('list_session_events') }
 export function listHandoffPacks(): Promise<HandoffPack[]> { return invoke('list_handoff_packs') }
 export function createHandoffPack(sessionId: string, fromRuntime: RuntimeKind | null, toRuntime: RuntimeKind | null, goal: string, summary: string): Promise<HandoffPack> { return invoke('create_handoff_pack', { sessionId, fromRuntime, toRuntime, goal, summary }) }
+export function buildSessionSyncPlan(): Promise<SessionSyncPlan> { return invoke('build_session_sync_plan') }
