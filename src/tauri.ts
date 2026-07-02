@@ -6,7 +6,9 @@ import type {
   AgentInstallation,
   ApprovalRequest,
   AuditEvent,
+  BundlePullRequest,
   DeepLinkRequest,
+  DeviceRegistrationRequest,
   DoctorReport,
   GeneratedArtifact,
   HandoffPack,
@@ -20,17 +22,21 @@ import type {
   KnowledgeSpace,
   LifecyclePlan,
   LocalAgentSummary,
+  LocalApiSpec,
   McpConfigPlan,
   McpServerConfig,
   MemoryCandidate,
   MemoryItem,
   MemoryScope,
   MemoryType,
+  PaasBundleSummary,
+  PaasConnectionInfo,
   PaasConnectionStatus,
   PaasLoginRequest,
   PaasSession,
   PaasSyncPreview,
   RiskScanReport,
+  RuntimeConfigPreview,
   RuntimeDefinition,
   RuntimeDetection,
   RuntimeKind,
@@ -45,17 +51,23 @@ import type {
 export function loadSettings(): Promise<AgentBuddySettings> { return invoke('load_settings') }
 export function saveSettings(settings: AgentBuddySettings): Promise<AgentBuddySettings> { return invoke('save_settings', { settings }) }
 export function getPaasConnectionStatus(): Promise<PaasConnectionStatus> { return invoke('get_paas_connection_status') }
+export function getPaasConnectionInfo(): Promise<PaasConnectionInfo> { return invoke('get_paas_connection_info') }
+export function previewDeviceRegistration(): Promise<DeviceRegistrationRequest> { return invoke('preview_device_registration') }
+export function previewBundlePullRequest(): Promise<BundlePullRequest> { return invoke('preview_bundle_pull_request') }
 export function createPaasSession(request: PaasLoginRequest): Promise<PaasSession> { return invoke('create_paas_session', { request }) }
 export function previewPaasSync(): Promise<PaasSyncPreview> { return invoke('preview_paas_sync') }
 export function refreshAgentSource(): Promise<SourceRefreshResult> { return invoke('refresh_agent_source') }
 export function listAgents(): Promise<LocalAgentSummary[]> { return invoke('list_agents') }
 export function buildAgentBundles(agentIds: string[]): Promise<AgentBundle[]> { return invoke('build_agent_bundles', { agentIds }) }
+export function summarizeLocalBundles(agentIds: string[]): Promise<PaasBundleSummary[]> { return invoke('summarize_local_bundles', { agentIds }) }
 export function buildBundleDiff(oldAgentId: string, newAgentId: string): Promise<AgentBundleDiff> { return invoke('build_bundle_diff', { oldAgentId, newAgentId }) }
 export function runtimeDefinitions(): Promise<RuntimeDefinition[]> { return invoke('runtime_definitions') }
 export function detectRuntimes(): Promise<RuntimeDetection[]> { return invoke('detect_runtimes') }
+export function listLocalApiSpec(): Promise<LocalApiSpec> { return invoke('list_local_api_spec') }
 export function getInstallPlan(agentIds: string[], targets: InstallTarget[]): Promise<InstallPlan> { return invoke('get_install_plan', { agentIds, targets }) }
 export function buildInstructionInjectionPlan(agentId: string, runtime: RuntimeKind, projectDir?: string | null): Promise<InstructionInjectionPlan> { return invoke('build_instruction_injection_plan', { agentId, runtime, projectDir: projectDir ?? null }) }
 export function buildMcpConfigPlan(runtime: RuntimeKind, projectDir?: string | null): Promise<McpConfigPlan> { return invoke('build_mcp_config_plan', { runtime, projectDir: projectDir ?? null }) }
+export function buildRuntimeMcpConfigPreview(runtime: RuntimeKind): Promise<RuntimeConfigPreview> { return invoke('build_runtime_mcp_config_preview', { runtime }) }
 export function installAgents(agentIds: string[], targets: InstallTarget[]): Promise<InstallResult[]> { return invoke('install_agents', { agentIds, targets }) }
 export function listInstallations(): Promise<AgentInstallation[]> { return invoke('list_installations') }
 export function listInstallBackups(): Promise<InstallBackup[]> { return invoke('list_install_backups') }
