@@ -3,7 +3,7 @@ name = "agent-buddy"
 version = "0.1.0"
 description = "Local-first agent bundle installer and runtime adapter layer"
 authors = ["partme-ai"]
-license = "MIT"
+license = "Apache-2.0"
 edition = "2021"
 rust-version = "1.80"
 
