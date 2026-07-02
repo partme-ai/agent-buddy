@@ -1,17 +1,24 @@
 import { invoke } from '@tauri-apps/api/core'
 import type {
+  AgentBundle,
   AgentInstallation,
+  AuditEvent,
   DeepLinkRequest,
   DoctorReport,
+  GeneratedArtifact,
   InstallBackup,
   InstallEvent,
   InstallPlan,
   InstallResult,
   InstallTarget,
   LocalAgentSummary,
+  McpServerConfig,
   RuntimeDefinition,
   RuntimeDetection,
+  SkillPackage,
+  SkillTargetPath,
   SourceRefreshResult,
+  SyncOutboxEvent,
 } from './types'
 
 export function refreshAgentSource(): Promise<SourceRefreshResult> {
@@ -20,6 +27,10 @@ export function refreshAgentSource(): Promise<SourceRefreshResult> {
 
 export function listAgents(): Promise<LocalAgentSummary[]> {
   return invoke('list_agents')
+}
+
+export function buildAgentBundles(agentIds: string[]): Promise<AgentBundle[]> {
+  return invoke('build_agent_bundles', { agentIds })
 }
 
 export function runtimeDefinitions(): Promise<RuntimeDefinition[]> {
@@ -48,6 +59,34 @@ export function listInstallBackups(): Promise<InstallBackup[]> {
 
 export function listInstallEvents(): Promise<InstallEvent[]> {
   return invoke('list_install_events')
+}
+
+export function listAuditEvents(): Promise<AuditEvent[]> {
+  return invoke('list_audit_events')
+}
+
+export function listSyncOutbox(): Promise<SyncOutboxEvent[]> {
+  return invoke('list_sync_outbox')
+}
+
+export function listGeneratedArtifacts(): Promise<GeneratedArtifact[]> {
+  return invoke('list_generated_artifacts')
+}
+
+export function readGeneratedArtifact(path: string): Promise<string> {
+  return invoke('read_generated_artifact', { path })
+}
+
+export function listDefaultMcpServers(): Promise<McpServerConfig[]> {
+  return invoke('list_default_mcp_servers')
+}
+
+export function listSkillTargets(): Promise<SkillTargetPath[]> {
+  return invoke('list_skill_targets')
+}
+
+export function listBuiltInSkills(): Promise<SkillPackage[]> {
+  return invoke('list_built_in_skills')
 }
 
 export function restoreBackup(backupId: string): Promise<void> {
