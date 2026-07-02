@@ -45,6 +45,7 @@ import type {
   SkillPackage,
   SkillTargetPath,
   SourceRefreshResult,
+  SyncFlushPlan,
   SyncOutboxEvent,
 } from './types'
 
@@ -56,6 +57,7 @@ export function previewDeviceRegistration(): Promise<DeviceRegistrationRequest> 
 export function previewBundlePullRequest(): Promise<BundlePullRequest> { return invoke('preview_bundle_pull_request') }
 export function createPaasSession(request: PaasLoginRequest): Promise<PaasSession> { return invoke('create_paas_session', { request }) }
 export function previewPaasSync(): Promise<PaasSyncPreview> { return invoke('preview_paas_sync') }
+export function buildSyncFlushPlan(): Promise<SyncFlushPlan> { return invoke('build_sync_flush_plan') }
 export function refreshAgentSource(): Promise<SourceRefreshResult> { return invoke('refresh_agent_source') }
 export function listAgents(): Promise<LocalAgentSummary[]> { return invoke('list_agents') }
 export function buildAgentBundles(agentIds: string[]): Promise<AgentBundle[]> { return invoke('build_agent_bundles', { agentIds }) }
