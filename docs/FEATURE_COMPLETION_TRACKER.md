@@ -13,6 +13,7 @@ Agent Buddy should first complete the local-first feature surface, then run vali
 | Tauri / React / Rust shell | Written | Desktop shell and command bridge exist. |
 | SQLite local state | Written | Sources, detections, installs, backups, events, audit, sync, memory, knowledge, session. |
 | 18 Runtime registry | Written | Covers the full `agency-agents-zh` target list. |
+| 18 Runtime adapter manifest | Written | Detect methods, install targets, generated formats, integration methods and support levels are declared. |
 | Source scanner | Written | Local Git clone/pull, frontmatter parsing, agent list. |
 | Runtime converters | Written | Markdown, rules, TOML, SKILL.md, Gemini extension, OpenClaw workspace. |
 | Install Plan | Written | Preview, conflicts, warnings, post actions. |
@@ -27,8 +28,9 @@ Agent Buddy should first complete the local-first feature surface, then run vali
 | MCP config preview | Written | Claude, Codex, OpenCode, Hermes, WorkBuddy, OpenClaw and generic config plans. |
 | Skill registry | Written | Built-in Buddy skills and target paths. |
 | Marketplace plans | Written | SkillHub, skills.sh, GitHub, public MCP, local source plans with attribution/risk. |
+| Marketplace attribution | Written | Skill/MCP plans include source attribution and notice hints. |
 | Generated artifacts browser | Written | List/read generated artifacts. |
-| Risk scanner | Written | Text and generated artifact scan. |
+| Risk scanner | Written | Text and generated artifact scan; marketplace plans now include risk report. |
 | Memory center | Written | Candidate and item model, propose/approve flow. |
 | Knowledge mirror metadata | Written | Spaces and snapshots. |
 | Knowledge package plan | Written | Mirror/context pack models exist. |
@@ -45,17 +47,16 @@ Agent Buddy should first complete the local-first feature surface, then run vali
 | Settings | Written | Local settings with device ID and retention flags. |
 | Frontend install UX | Written | Agent list, runtime selector, install wizard, records. |
 | Frontend state center | Partial | Most panels exist; Settings/PaaS/Risk/MCP preview need richer UI. |
-| Per-runtime adapter split | Pending | Central `adapters.rs` still needs splitting. |
+| Per-runtime adapter split | Partial | Adapter manifest exists; central `adapters.rs` still needs physical split. |
 | Real local HTTP/MCP server | Pending | Route spec exists; daemon runtime not implemented. |
 | Platform Deep Link registration | Pending | Parser exists; OS registration not wired. |
 | Build/typecheck/Tauri validation | Deferred | Intentionally postponed until feature surface is complete. |
 
 ## Next coding pass
 
-1. Split adapter metadata into manifest and later per-runtime files.
-2. Add richer Settings/PaaS/Risk/MCP preview panels.
-3. Add local API daemon skeleton.
-4. Add retention cleanup plan for generated artifacts and backups.
-5. Add cross-runtime session scanner adapters and normalizers.
-6. Add per-runtime Doctor details.
-7. Only then run validation.
+1. Add richer Settings/PaaS/Risk/MCP preview panels.
+2. Add local API daemon skeleton.
+3. Add retention cleanup plan for generated artifacts and backups.
+4. Add per-runtime Doctor details.
+5. Split central `adapters.rs` into per-runtime files after the manifest stabilizes.
+6. Only then run validation.
