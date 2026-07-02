@@ -21,6 +21,10 @@ export type RuntimeKind =
 export type InstallScope = 'global' | 'project' | 'custom'
 export type DoctorStatus = 'ok' | 'warning' | 'error'
 export type DeepLinkAction = 'install-source' | 'install-agent' | 'install-bundle' | 'install-skill' | 'install-mcp' | 'handoff' | 'unknown'
+export type McpTransport = 'stdio' | 'http' | 'sse'
+export type SkillSyncMode = 'auto' | 'symlink' | 'copy'
+export type AuditSeverity = 'info' | 'warn' | 'error' | 'security'
+export type SyncStatus = 'pending' | 'sent' | 'failed' | 'skipped'
 
 export interface LocalAgentSummary {
   id: string
@@ -147,6 +151,146 @@ export interface DeepLinkRequest {
   rawUrl: string
   action: DeepLinkAction
   params: Record<string, string>
+}
+
+export interface AgentBundle {
+  bundleId: string
+  version: string
+  profile: AgentProfile
+  instructions: AgentInstructions
+  knowledge: KnowledgePolicy
+  memory: MemoryPolicy
+  skills: SkillRef[]
+  mcpServers: McpServerRef[]
+  permissions: PermissionPolicy
+  targets: RuntimeKind[]
+  source: BundleSource
+  metadata: Record<string, string>
+}
+
+export interface AgentProfile {
+  name: string
+  description: string
+  category: string
+  avatar?: string | null
+}
+
+export interface AgentInstructions {
+  role: string
+  rules: string[]
+  body: string
+  outputFormat?: string | null
+}
+
+export interface KnowledgePolicy {
+  spaces: string[]
+  syncMode: string
+  retrievalRequired: boolean
+}
+
+export interface MemoryPolicy {
+  provider: string
+  readScopes: string[]
+  writePolicy: string
+}
+
+export interface SkillRef {
+  id: string
+  source: string
+  version?: string | null
+}
+
+export interface McpServerRef {
+  id: string
+  required: boolean
+}
+
+export interface PermissionPolicy {
+  fileWrite: string
+  network: string
+  shell: string
+  externalPublish: string
+}
+
+export interface BundleSource {
+  sourceId: string
+  sourcePath: string
+  upstreamLicense?: string | null
+}
+
+export interface McpPolicy {
+  fileSystem: string
+  network: string
+  shell: string
+  audit: boolean
+  approvalRequired: boolean
+}
+
+export interface McpServerConfig {
+  id: string
+  name: string
+  description: string
+  transport: McpTransport
+  command?: string | null
+  args: string[]
+  url?: string | null
+  required: boolean
+  enabled: boolean
+  managedBy: string
+  policy: McpPolicy
+}
+
+export interface SkillPackage {
+  id: string
+  name: string
+  description: string
+  source: string
+  version?: string | null
+  packagePath?: string | null
+  syncMode: SkillSyncMode
+  enabledTargets: RuntimeKind[]
+}
+
+export interface SkillTargetPath {
+  runtime: RuntimeKind
+  globalPath?: string | null
+  projectRelativePath?: string | null
+  supportsSymlink: boolean
+}
+
+export interface GeneratedArtifact {
+  sourceId: string
+  generationId: string
+  runtime: string
+  relativePath: string
+  absolutePath: string
+  sizeBytes: number
+  modifiedAt?: number | null
+}
+
+export interface AuditEvent {
+  id: string
+  actor: string
+  action: string
+  resourceType: string
+  resourceId: string
+  runtime?: RuntimeKind | null
+  severity: AuditSeverity
+  message: string
+  metadataJson: string
+  createdAt: number
+}
+
+export interface SyncOutboxEvent {
+  id: string
+  aggregateType: string
+  aggregateId: string
+  eventType: string
+  payloadJson: string
+  status: SyncStatus
+  retryCount: number
+  createdAt: number
+  updatedAt: number
 }
 
 export interface SourceRefreshResult {
