@@ -38,10 +38,18 @@ export type ApprovalStatus = 'pending' | 'approved' | 'denied' | 'expired'
 export type LifecycleAction = 'install' | 'reinstall' | 'upgrade' | 'uninstall' | 'repair' | 'rollback'
 
 export interface AgentBuddySettings { deviceId: string; paasBaseUrl: string; syncEnabled: boolean; telemetryEnabled: boolean; generatedArtifactRetentionDays: number; backupRetentionDays: number; installMode: InstallMode }
+export interface PaasEndpoints { deviceRegister: string; agentBundles: string; syncOutbox: string; auditEvents: string; memorySync: string; sessionSync: string; knowledgeSync: string }
+export interface PaasConnectionInfo { baseUrl: string; deviceId: string; syncEnabled: boolean; telemetryEnabled: boolean; endpoints: PaasEndpoints }
 export interface PaasConnectionStatus { configured: boolean; authenticated: boolean; baseUrl: string; workspaceId?: string | null; userId?: string | null; message: string }
 export interface PaasLoginRequest { baseUrl: string; workspaceId: string; userId: string; accessToken: string }
 export interface PaasSession { id: string; baseUrl: string; workspaceId: string; userId: string; accessTokenHint: string; createdAt: number; expiresAt?: number | null }
+export interface DeviceRegistrationRequest { requestId: string; deviceId: string; deviceName: string; platform: string; appVersion: string; capabilities: string[] }
+export interface BundlePullRequest { userId?: string | null; deviceId: string; runtimeTargets: string[]; includeKnowledge: boolean; includeSkills: boolean; includeMcp: boolean }
+export interface PaasBundleSummary { bundleId: string; version: string; name: string; description: string; category: string; targetCount: number; skillCount: number; mcpCount: number; knowledgeSpaceCount: number; memoryProvider: string }
 export interface PaasSyncPreview { pendingEvents: number; destination: string; eventTypes: string[]; warnings: string[] }
+
+export interface LocalApiSpec { bindHost: string; bindPort: number; baseUrl: string; routes: LocalApiRoute[] }
+export interface LocalApiRoute { method: string; path: string; purpose: string; authRequired: boolean; audit: boolean }
 
 export interface LocalAgentSummary { id: string; slug: string; name: string; description: string; category: string; sourcePath: string }
 export interface RuntimeDefinition { kind: RuntimeKind; label: string; scope: InstallScope; requiresProjectDir: boolean; supportsUninstall: boolean; supportsNativeRegistration: boolean; defaultTarget?: string | null }
@@ -75,6 +83,8 @@ export interface InstructionInjectionPlan { bundleId: string; runtime: RuntimeKi
 export interface InstructionTargetFile { relativePath: string; absolutePath?: string | null; content: string; mergeStrategy: string }
 export interface McpConfigPlan { runtime: RuntimeKind; projectDir?: string | null; configFiles: McpConfigFile[]; warnings: string[] }
 export interface McpConfigFile { path: string; format: string; content: string; mergeStrategy: string }
+export interface RuntimeConfigPreview { runtime: RuntimeKind; files: RuntimeConfigFile[]; warnings: string[] }
+export interface RuntimeConfigFile { relativePath: string; content: string; mergeStrategy: string }
 export interface ApprovalRequest { id: string; runtime?: RuntimeKind | null; action: string; resourceType: string; resourceId: string; reason: string; riskLevel: ApprovalRiskLevel; status: ApprovalStatus; createdAt: number; resolvedAt?: number | null }
 export interface LifecyclePlan { action: LifecycleAction; runtime?: RuntimeKind | null; installationId?: string | null; steps: LifecycleStep[]; warnings: string[]; reversible: boolean }
 export interface LifecycleStep { id: string; label: string; description: string; destructive: boolean }
