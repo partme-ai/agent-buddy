@@ -19,32 +19,20 @@ export type RuntimeKind =
   | 'qoder'
 
 export type InstallScope = 'global' | 'project' | 'custom'
+export type InstallMode = 'copy' | 'symlink' | 'auto'
 export type DoctorStatus = 'ok' | 'warning' | 'error'
 export type DeepLinkAction = 'install-source' | 'install-agent' | 'install-bundle' | 'install-skill' | 'install-mcp' | 'handoff' | 'unknown'
 export type McpTransport = 'stdio' | 'http' | 'sse'
 export type SkillSyncMode = 'auto' | 'symlink' | 'copy'
 export type AuditSeverity = 'info' | 'warn' | 'error' | 'security'
 export type SyncStatus = 'pending' | 'sent' | 'failed' | 'skipped'
+export type RiskSeverity = 'info' | 'warning' | 'high' | 'critical'
 export type MemoryScope = 'user' | 'agent' | 'project' | 'team' | 'tool'
 export type MemoryType = 'preference' | 'correction' | 'project-context' | 'team-rule' | 'episodic' | 'tool-usage' | 'other'
 export type MemoryStatus = 'pending' | 'active' | 'rejected' | 'archived'
-export type SessionEventType =
-  | 'session-created'
-  | 'user-message-received'
-  | 'agent-message-generated'
-  | 'knowledge-searched'
-  | 'memory-read'
-  | 'memory-proposed'
-  | 'skill-invoked'
-  | 'mcp-tool-called'
-  | 'tool-result-received'
-  | 'file-changed'
-  | 'approval-requested'
-  | 'approval-resolved'
-  | 'session-summarized'
-  | 'handoff-created'
-  | 'error'
+export type SessionEventType = 'session-created' | 'user-message-received' | 'agent-message-generated' | 'knowledge-searched' | 'memory-read' | 'memory-proposed' | 'skill-invoked' | 'mcp-tool-called' | 'tool-result-received' | 'file-changed' | 'approval-requested' | 'approval-resolved' | 'session-summarized' | 'handoff-created' | 'error'
 
+export interface AgentBuddySettings { deviceId: string; paasBaseUrl: string; syncEnabled: boolean; telemetryEnabled: boolean; generatedArtifactRetentionDays: number; backupRetentionDays: number; installMode: InstallMode }
 export interface LocalAgentSummary { id: string; slug: string; name: string; description: string; category: string; sourcePath: string }
 export interface RuntimeDefinition { kind: RuntimeKind; label: string; scope: InstallScope; requiresProjectDir: boolean; supportsUninstall: boolean; supportsNativeRegistration: boolean; defaultTarget?: string | null }
 export interface RuntimeDetection { kind: RuntimeKind; label: string; detected: boolean; scope: InstallScope; commandPath?: string | null; configDir?: string | null; defaultTarget?: string | null; notes: string[] }
@@ -61,20 +49,7 @@ export interface DoctorCheck { id: string; label: string; status: DoctorStatus; 
 export interface DoctorReport { summary: DoctorSummary; checks: DoctorCheck[] }
 export interface DeepLinkRequest { rawUrl: string; action: DeepLinkAction; params: Record<string, string> }
 
-export interface AgentBundle {
-  bundleId: string
-  version: string
-  profile: AgentProfile
-  instructions: AgentInstructions
-  knowledge: KnowledgePolicy
-  memory: MemoryPolicy
-  skills: SkillRef[]
-  mcpServers: McpServerRef[]
-  permissions: PermissionPolicy
-  targets: RuntimeKind[]
-  source: BundleSource
-  metadata: Record<string, string>
-}
+export interface AgentBundle { bundleId: string; version: string; profile: AgentProfile; instructions: AgentInstructions; knowledge: KnowledgePolicy; memory: MemoryPolicy; skills: SkillRef[]; mcpServers: McpServerRef[]; permissions: PermissionPolicy; targets: RuntimeKind[]; source: BundleSource; metadata: Record<string, string> }
 export interface AgentProfile { name: string; description: string; category: string; avatar?: string | null }
 export interface AgentInstructions { role: string; rules: string[]; body: string; outputFormat?: string | null }
 export interface KnowledgePolicy { spaces: string[]; syncMode: string; retrievalRequired: boolean }
@@ -91,6 +66,8 @@ export interface SkillTargetPath { runtime: RuntimeKind; globalPath?: string | n
 export interface GeneratedArtifact { sourceId: string; generationId: string; runtime: string; relativePath: string; absolutePath: string; sizeBytes: number; modifiedAt?: number | null }
 export interface AuditEvent { id: string; actor: string; action: string; resourceType: string; resourceId: string; runtime?: RuntimeKind | null; severity: AuditSeverity; message: string; metadataJson: string; createdAt: number }
 export interface SyncOutboxEvent { id: string; aggregateType: string; aggregateId: string; eventType: string; payloadJson: string; status: SyncStatus; retryCount: number; createdAt: number; updatedAt: number }
+export interface RiskFinding { severity: RiskSeverity; ruleId: string; message: string; matched: string }
+export interface RiskScanReport { totalFindings: number; findings: RiskFinding[] }
 
 export interface MemoryItem { id: string; scope: MemoryScope; memoryType: MemoryType; title: string; content: string; source: string; status: MemoryStatus; createdAt: number; updatedAt: number }
 export interface MemoryCandidate { id: string; scope: MemoryScope; memoryType: MemoryType; content: string; sourceSessionId?: string | null; confidence: number; status: MemoryStatus; createdAt: number }
