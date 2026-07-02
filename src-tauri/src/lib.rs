@@ -11,20 +11,26 @@ mod generated;
 mod installer;
 mod instruction;
 mod knowledge;
+mod knowledge_package;
 mod lifecycle;
 mod local_api;
+mod marketplace;
 mod mcp;
 mod mcp_config;
 mod memory;
+mod memory_sync;
 mod paas;
 mod risk;
 mod runtime;
 mod runtime_config;
+mod runtime_status;
 mod session;
+mod session_scanner;
 mod settings;
 mod skill;
 mod source;
 mod sync;
+mod sync_engine;
 
 use approval::{ApprovalRequest, ApprovalRiskLevel, ApprovalStatus};
 use audit::{audit_event, AuditEvent, AuditSeverity};
@@ -37,19 +43,25 @@ use domain::{LocalAgentSummary, SourceRefreshResult};
 use generated::GeneratedArtifact;
 use instruction::InstructionInjectionPlan;
 use knowledge::{KnowledgeSnapshot, KnowledgeSpace};
+use knowledge_package::{KnowledgeContextPack, KnowledgeMirrorPlan};
 use lifecycle::LifecyclePlan;
 use local_api::LocalApiSpec;
+use marketplace::{MarketplaceSource, McpInstallPlan, McpInstallRequest, SkillInstallPlan, SkillInstallRequest};
 use mcp_config::McpConfigPlan;
 use memory::{MemoryCandidate, MemoryItem};
+use memory_sync::{MemoryInitPlan, MemoryWritebackPlan};
 use paas::{BundlePullRequest, DeviceRegistrationRequest, PaasBundleSummary, PaasConnectionInfo, PaasConnectionStatus, PaasLoginRequest, PaasSession, PaasSyncPreview};
 use risk::RiskScanReport;
 use runtime::{AgentInstallation, InstallBackup, InstallEvent, InstallPlan, InstallResult, InstallTarget, RuntimeDetection, RuntimeKind};
 use runtime_config::RuntimeConfigPreview;
+use runtime_status::BuddyStatusReport;
 use session::{HandoffPack, SessionEvent};
+use session_scanner::SessionSyncPlan;
 use settings::AgentBuddySettings;
 use std::path::PathBuf;
 use std::sync::Arc;
 use sync::{outbox_event, SyncOutboxEvent};
+use sync_engine::SyncFlushPlan;
 use tauri::{Manager, State};
 
 struct AppState { db: Arc<Database>, app_data_dir: PathBuf }
@@ -70,6 +82,8 @@ fn preview_bundle_pull_request(state: State<'_, AppState>) -> Result<BundlePullR
 fn create_paas_session(request: PaasLoginRequest, state: State<'_, AppState>) -> Result<PaasSession, String> { let session = paas::create_session(request); state.db.save_audit_event(&audit_event("paas.session.create", "paas_session", &session.id, None, AuditSeverity::Info, "created local PaaS session placeholder")).map_err(to_message)?; Ok(session) }
 #[tauri::command]
 fn preview_paas_sync(state: State<'_, AppState>) -> Result<PaasSyncPreview, String> { let settings = settings::load_settings(&state.app_data_dir).map_err(to_message)?; let events = state.db.list_sync_outbox().map_err(to_message)?.into_iter().map(|event| event.event_type).collect(); Ok(paas::preview_sync(settings.paas_base_url, events)) }
+#[tauri::command]
+fn build_sync_flush_plan(state: State<'_, AppState>) -> Result<SyncFlushPlan, String> { let settings = settings::load_settings(&state.app_data_dir).map_err(to_message)?; let events = state.db.list_sync_outbox().map_err(to_message)?; Ok(sync_engine::build_flush_plan(&settings, &events)) }
 
 #[tauri::command]
 fn refresh_agent_source(state: State<'_, AppState>) -> Result<SourceRefreshResult, String> { let result = source::refresh_source(&state.app_data_dir).map_err(to_message)?; state.db.save_source_refresh(&result).map_err(to_message)?; state.db.save_audit_event(&audit_event("source.refresh", "agent_source", &result.source_id, None, AuditSeverity::Info, "refreshed agency-agents-zh source")).map_err(to_message)?; Ok(result) }
@@ -87,6 +101,8 @@ fn detect_runtimes(state: State<'_, AppState>) -> Result<Vec<RuntimeDetection>, 
 #[tauri::command]
 fn runtime_definitions() -> Result<Vec<adapters::RuntimeDefinition>, String> { Ok(adapters::runtime_definitions()) }
 #[tauri::command]
+fn build_buddy_status_report(state: State<'_, AppState>) -> Result<BuddyStatusReport, String> { let settings = settings::load_settings(&state.app_data_dir).map_err(to_message)?; let detections = adapters::detect_all(); let installations = state.db.list_installations().map_err(to_message)?; Ok(runtime_status::build_status_report(settings.device_id, detections, installations)) }
+#[tauri::command]
 fn list_local_api_spec() -> Result<LocalApiSpec, String> { Ok(local_api::default_local_api_spec()) }
 #[tauri::command]
 fn get_install_plan(agent_ids: Vec<String>, targets: Vec<InstallTarget>, state: State<'_, AppState>) -> Result<InstallPlan, String> { let all_agents = source::list_agents(&state.app_data_dir).map_err(to_message)?; let selected = select_agents(all_agents, &agent_ids); installer::build_install_plan(&selected, &targets, &state.app_data_dir).map_err(to_message) }
@@ -96,6 +112,13 @@ fn build_instruction_injection_plan(agent_id: String, runtime: RuntimeKind, proj
 fn build_mcp_config_plan(runtime: RuntimeKind, project_dir: Option<String>) -> Result<McpConfigPlan, String> { let servers = mcp::default_buddy_mcp_servers(); Ok(mcp_config::build_mcp_config_plan(runtime, &servers, project_dir.as_deref())) }
 #[tauri::command]
 fn build_runtime_mcp_config_preview(runtime: RuntimeKind) -> Result<RuntimeConfigPreview, String> { let servers = mcp::default_buddy_mcp_servers(); Ok(runtime_config::mcp_config_preview(runtime, &servers)) }
+
+#[tauri::command]
+fn list_marketplace_sources() -> Result<Vec<MarketplaceSource>, String> { Ok(marketplace::default_marketplace_sources()) }
+#[tauri::command]
+fn build_skill_install_plan(request: SkillInstallRequest, state: State<'_, AppState>) -> Result<SkillInstallPlan, String> { Ok(marketplace::build_skill_install_plan(request, &state.app_data_dir)) }
+#[tauri::command]
+fn build_marketplace_mcp_install_plan(request: McpInstallRequest) -> Result<McpInstallPlan, String> { Ok(marketplace::build_mcp_install_plan(request)) }
 
 #[tauri::command]
 fn install_agents(agent_ids: Vec<String>, targets: Vec<InstallTarget>, state: State<'_, AppState>) -> Result<Vec<InstallResult>, String> { let all_agents = source::list_agents(&state.app_data_dir).map_err(to_message)?; let selected = select_agents(all_agents, &agent_ids); let mut results = Vec::new(); for target in targets { let outcome = installer::install_target(&selected, &target, &state.app_data_dir).map_err(to_message)?; for record in &outcome.records { state.db.save_installation(record).map_err(to_message)?; let payload = serde_json::to_string(record).map_err(to_message)?; state.db.save_sync_outbox_event(&outbox_event("agent_installation", &record.id, "agent.installation.created", payload)).map_err(to_message)?; state.db.save_audit_event(&audit_event("agent.install", "agent_installation", &record.id, Some(record.runtime), AuditSeverity::Info, "installed agent bundle into runtime")).map_err(to_message)?; } for backup in &outcome.backups { state.db.save_backup(backup).map_err(to_message)?; } for event in &outcome.events { state.db.save_install_event(event).map_err(to_message)?; } results.push(outcome.result); } Ok(results) }
@@ -144,6 +167,13 @@ fn list_knowledge_snapshots(state: State<'_, AppState>) -> Result<Vec<KnowledgeS
 #[tauri::command]
 fn create_knowledge_snapshot(space_id: String, version: String, manifest_path: String, state: State<'_, AppState>) -> Result<KnowledgeSnapshot, String> { let snapshot = knowledge::new_snapshot(space_id, version, manifest_path); state.db.save_knowledge_snapshot(&snapshot).map_err(to_message)?; Ok(snapshot) }
 #[tauri::command]
+fn build_wiki_mirror_plan(space_id: String, state: State<'_, AppState>) -> Result<KnowledgeMirrorPlan, String> { Ok(knowledge_package::build_wiki_mirror_plan(space_id, &state.app_data_dir)) }
+#[tauri::command]
+fn build_rag_mirror_plan(space_id: String, state: State<'_, AppState>) -> Result<KnowledgeMirrorPlan, String> { Ok(knowledge_package::build_rag_mirror_plan(space_id, &state.app_data_dir)) }
+#[tauri::command]
+fn build_knowledge_context_pack(query: String, space_ids: Vec<String>) -> Result<KnowledgeContextPack, String> { Ok(knowledge_package::build_context_pack(query, space_ids)) }
+
+#[tauri::command]
 fn list_memory_items(state: State<'_, AppState>) -> Result<Vec<MemoryItem>, String> { state.db.list_memory_items().map_err(to_message) }
 #[tauri::command]
 fn list_memory_candidates(state: State<'_, AppState>) -> Result<Vec<MemoryCandidate>, String> { state.db.list_memory_candidates().map_err(to_message) }
@@ -152,6 +182,11 @@ fn propose_memory(content: String, scope: String, memory_type: String, source_se
 #[tauri::command]
 fn approve_memory_candidate(candidate_id: String, title: String, state: State<'_, AppState>) -> Result<MemoryItem, String> { let candidate = state.db.list_memory_candidates().map_err(to_message)?.into_iter().find(|item| item.id == candidate_id).ok_or_else(|| format!("memory candidate not found: {candidate_id}"))?; let item = memory::activate_candidate(&candidate, title); state.db.save_memory_item(&item).map_err(to_message)?; state.db.save_audit_event(&audit_event("memory.approve", "memory_item", &item.id, None, AuditSeverity::Info, "approved memory candidate")).map_err(to_message)?; Ok(item) }
 #[tauri::command]
+fn build_memory_init_plan(scopes: Vec<String>) -> Result<MemoryInitPlan, String> { Ok(memory_sync::build_init_plan(scopes.iter().map(|scope| memory::parse_scope(scope)).collect())) }
+#[tauri::command]
+fn build_memory_writeback_plan(state: State<'_, AppState>) -> Result<MemoryWritebackPlan, String> { let candidates = state.db.list_memory_candidates().map_err(to_message)?; let items = state.db.list_memory_items().map_err(to_message)?; Ok(memory_sync::build_writeback_plan(candidates, items)) }
+
+#[tauri::command]
 fn append_session_event(session_id: String, runtime: Option<RuntimeKind>, event_type: String, payload_json: String, state: State<'_, AppState>) -> Result<SessionEvent, String> { let event = session::new_event(session_id, runtime, session::parse_event_type(&event_type), payload_json); state.db.save_session_event(&event).map_err(to_message)?; Ok(event) }
 #[tauri::command]
 fn list_session_events(state: State<'_, AppState>) -> Result<Vec<SessionEvent>, String> { state.db.list_session_events().map_err(to_message) }
@@ -159,6 +194,9 @@ fn list_session_events(state: State<'_, AppState>) -> Result<Vec<SessionEvent>, 
 fn list_handoff_packs(state: State<'_, AppState>) -> Result<Vec<HandoffPack>, String> { state.db.list_handoff_packs().map_err(to_message) }
 #[tauri::command]
 fn create_handoff_pack(session_id: String, from_runtime: Option<RuntimeKind>, to_runtime: Option<RuntimeKind>, goal: String, summary: String, state: State<'_, AppState>) -> Result<HandoffPack, String> { let handoff = session::new_handoff(session_id, from_runtime, to_runtime, goal, summary); state.db.save_handoff_pack(&handoff).map_err(to_message)?; state.db.save_audit_event(&audit_event("handoff.create", "handoff_pack", &handoff.id, from_runtime, AuditSeverity::Info, "created handoff pack")).map_err(to_message)?; Ok(handoff) }
+#[tauri::command]
+fn build_session_sync_plan(state: State<'_, AppState>) -> Result<SessionSyncPlan, String> { let settings = settings::load_settings(&state.app_data_dir).map_err(to_message)?; Ok(session_scanner::build_session_sync_plan(settings.sync_enabled)) }
+
 #[tauri::command]
 fn restore_backup(backup_id: String, state: State<'_, AppState>) -> Result<(), String> { let backup = state.db.get_backup(&backup_id).map_err(to_message)?.ok_or_else(|| format!("backup not found: {backup_id}"))?; let event = installer::restore_backup(&backup).map_err(to_message)?; state.db.save_install_event(&event).map_err(to_message)?; state.db.save_audit_event(&audit_event("backup.restore", "install_backup", backup_id, Some(backup.runtime), AuditSeverity::Warn, "restored install backup")).map_err(to_message)?; Ok(()) }
 #[tauri::command]
@@ -180,19 +218,22 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             load_settings, save_settings, get_paas_connection_status, get_paas_connection_info,
             preview_device_registration, preview_bundle_pull_request, create_paas_session,
-            preview_paas_sync, refresh_agent_source, list_agents, build_agent_bundles,
-            summarize_local_bundles, build_bundle_diff, detect_runtimes, runtime_definitions,
-            list_local_api_spec, get_install_plan, build_instruction_injection_plan,
-            build_mcp_config_plan, build_runtime_mcp_config_preview, install_agents,
-            list_installations, list_install_backups, list_install_events, list_audit_events,
-            list_sync_outbox, list_generated_artifacts, read_generated_artifact, scan_text_risk,
-            scan_generated_artifact, list_default_mcp_servers, list_skill_targets, list_built_in_skills,
-            create_approval_request, resolve_approval_request, repair_installation_plan,
-            uninstall_installation_plan, upgrade_installation_plan, initialize_default_knowledge_spaces,
-            list_knowledge_spaces, list_knowledge_snapshots, create_knowledge_snapshot,
-            list_memory_items, list_memory_candidates, propose_memory, approve_memory_candidate,
+            preview_paas_sync, build_sync_flush_plan, refresh_agent_source, list_agents,
+            build_agent_bundles, summarize_local_bundles, build_bundle_diff, detect_runtimes,
+            runtime_definitions, build_buddy_status_report, list_local_api_spec, get_install_plan,
+            build_instruction_injection_plan, build_mcp_config_plan, build_runtime_mcp_config_preview,
+            list_marketplace_sources, build_skill_install_plan, build_marketplace_mcp_install_plan,
+            install_agents, list_installations, list_install_backups, list_install_events,
+            list_audit_events, list_sync_outbox, list_generated_artifacts, read_generated_artifact,
+            scan_text_risk, scan_generated_artifact, list_default_mcp_servers, list_skill_targets,
+            list_built_in_skills, create_approval_request, resolve_approval_request,
+            repair_installation_plan, uninstall_installation_plan, upgrade_installation_plan,
+            initialize_default_knowledge_spaces, list_knowledge_spaces, list_knowledge_snapshots,
+            create_knowledge_snapshot, build_wiki_mirror_plan, build_rag_mirror_plan,
+            build_knowledge_context_pack, list_memory_items, list_memory_candidates, propose_memory,
+            approve_memory_candidate, build_memory_init_plan, build_memory_writeback_plan,
             append_session_event, list_session_events, list_handoff_packs, create_handoff_pack,
-            restore_backup, uninstall_installation, run_doctor, parse_deeplink
+            build_session_sync_plan, restore_backup, uninstall_installation, run_doctor, parse_deeplink
         ])
         .run(tauri::generate_context!())
         .expect("error while running Agent Buddy");
