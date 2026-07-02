@@ -1,7 +1,30 @@
 use crate::bundle::AgentBundle;
 use crate::runtime::RuntimeKind;
+use crate::settings::AgentBuddySettings;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PaasConnectionInfo {
+    pub base_url: String,
+    pub device_id: String,
+    pub sync_enabled: bool,
+    pub telemetry_enabled: bool,
+    pub endpoints: PaasEndpoints,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PaasEndpoints {
+    pub device_register: String,
+    pub agent_bundles: String,
+    pub sync_outbox: String,
+    pub audit_events: String,
+    pub memory_sync: String,
+    pub session_sync: String,
+    pub knowledge_sync: String,
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -37,6 +60,35 @@ pub struct PaasLoginRequest {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
+pub struct DeviceRegistrationRequest {
+    pub request_id: String,
+    pub device_id: String,
+    pub device_name: String,
+    pub platform: String,
+    pub app_version: String,
+    pub capabilities: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BundlePullRequest {
+    pub user_id: Option<String>,
+    pub device_id: String,
+    pub runtime_targets: Vec<String>,
+    pub include_knowledge: bool,
+    pub include_skills: bool,
+    pub include_mcp: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BundlePullResponse {
+    pub bundles: Vec<AgentBundle>,
+    pub next_cursor: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct PaasBundleSummary {
     pub bundle_id: String,
     pub version: String,
@@ -57,6 +109,25 @@ pub struct PaasSyncPreview {
     pub destination: String,
     pub event_types: Vec<String>,
     pub warnings: Vec<String>,
+}
+
+pub fn connection_info(settings: &AgentBuddySettings) -> PaasConnectionInfo {
+    let base = settings.paas_base_url.trim_end_matches('/').to_string();
+    PaasConnectionInfo {
+        base_url: base.clone(),
+        device_id: settings.device_id.clone(),
+        sync_enabled: settings.sync_enabled,
+        telemetry_enabled: settings.telemetry_enabled,
+        endpoints: PaasEndpoints {
+            device_register: format!("{base}/api/agent-buddy/devices/register"),
+            agent_bundles: format!("{base}/api/agent-buddy/bundles"),
+            sync_outbox: format!("{base}/api/agent-buddy/sync/outbox"),
+            audit_events: format!("{base}/api/agent-buddy/audit-events"),
+            memory_sync: format!("{base}/api/agent-buddy/memory/sync"),
+            session_sync: format!("{base}/api/agent-buddy/session/sync"),
+            knowledge_sync: format!("{base}/api/agent-buddy/knowledge/sync"),
+        },
+    }
 }
 
 pub fn connection_status(base_url: String, session: Option<PaasSession>) -> PaasConnectionStatus {
@@ -87,15 +158,26 @@ pub fn create_session(request: PaasLoginRequest) -> PaasSession {
     } else {
         format!("{}…{}", &request.access_token[..4], &request.access_token[request.access_token.len() - 4..])
     };
-    PaasSession {
-        id: Uuid::new_v4().to_string(),
-        base_url: request.base_url,
-        workspace_id: request.workspace_id,
-        user_id: request.user_id,
-        access_token_hint: token_hint,
-        created_at: now,
-        expires_at: None,
+    PaasSession { id: Uuid::new_v4().to_string(), base_url: request.base_url, workspace_id: request.workspace_id, user_id: request.user_id, access_token_hint: token_hint, created_at: now, expires_at: None }
+}
+
+pub fn device_registration_request(settings: &AgentBuddySettings) -> DeviceRegistrationRequest {
+    DeviceRegistrationRequest {
+        request_id: Uuid::new_v4().to_string(),
+        device_id: settings.device_id.clone(),
+        device_name: std::env::var("COMPUTERNAME").or_else(|_| std::env::var("HOSTNAME")).unwrap_or_else(|_| "local-device".to_string()),
+        platform: std::env::consts::OS.to_string(),
+        app_version: env!("CARGO_PKG_VERSION").to_string(),
+        capabilities: vec![
+            "agent-bundle-install".to_string(), "runtime-detect".to_string(), "skill-install".to_string(),
+            "mcp-config-preview".to_string(), "memory-center".to_string(), "knowledge-mirror".to_string(),
+            "session-event-center".to_string(), "sync-outbox".to_string(), "audit-events".to_string(),
+        ],
     }
+}
+
+pub fn bundle_pull_request(settings: &AgentBuddySettings, runtime_targets: Vec<String>) -> BundlePullRequest {
+    BundlePullRequest { user_id: None, device_id: settings.device_id.clone(), runtime_targets, include_knowledge: true, include_skills: true, include_mcp: true }
 }
 
 pub fn summarize_bundle(bundle: &AgentBundle) -> PaasBundleSummary {
@@ -115,18 +197,9 @@ pub fn summarize_bundle(bundle: &AgentBundle) -> PaasBundleSummary {
 
 pub fn preview_sync(destination: String, events: Vec<String>) -> PaasSyncPreview {
     let mut warnings = Vec::new();
-    if destination.trim().is_empty() {
-        warnings.push("PaaS destination URL is empty.".to_string());
-    }
-    if events.is_empty() {
-        warnings.push("There are no pending sync events.".to_string());
-    }
-    PaasSyncPreview {
-        pending_events: events.len(),
-        destination,
-        event_types: events,
-        warnings,
-    }
+    if destination.trim().is_empty() { warnings.push("PaaS destination URL is empty.".to_string()); }
+    if events.is_empty() { warnings.push("There are no pending sync events.".to_string()); }
+    PaasSyncPreview { pending_events: events.len(), destination, event_types: events, warnings }
 }
 
 pub fn default_runtime_targets() -> Vec<RuntimeKind> {
