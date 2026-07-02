@@ -31,8 +31,18 @@ export type MemoryScope = 'user' | 'agent' | 'project' | 'team' | 'tool'
 export type MemoryType = 'preference' | 'correction' | 'project-context' | 'team-rule' | 'episodic' | 'tool-usage' | 'other'
 export type MemoryStatus = 'pending' | 'active' | 'rejected' | 'archived'
 export type SessionEventType = 'session-created' | 'user-message-received' | 'agent-message-generated' | 'knowledge-searched' | 'memory-read' | 'memory-proposed' | 'skill-invoked' | 'mcp-tool-called' | 'tool-result-received' | 'file-changed' | 'approval-requested' | 'approval-resolved' | 'session-summarized' | 'handoff-created' | 'error'
+export type BundleChangeKind = 'profile-changed' | 'instruction-changed' | 'knowledge-changed' | 'memory-policy-changed' | 'skill-added' | 'skill-removed' | 'mcp-added' | 'mcp-removed' | 'permission-changed' | 'runtime-target-added' | 'runtime-target-removed' | 'metadata-changed'
+export type BundleDiffRiskLevel = 'low' | 'medium' | 'high' | 'critical'
+export type ApprovalRiskLevel = 'low' | 'medium' | 'high' | 'critical'
+export type ApprovalStatus = 'pending' | 'approved' | 'denied' | 'expired'
+export type LifecycleAction = 'install' | 'reinstall' | 'upgrade' | 'uninstall' | 'repair' | 'rollback'
 
 export interface AgentBuddySettings { deviceId: string; paasBaseUrl: string; syncEnabled: boolean; telemetryEnabled: boolean; generatedArtifactRetentionDays: number; backupRetentionDays: number; installMode: InstallMode }
+export interface PaasConnectionStatus { configured: boolean; authenticated: boolean; baseUrl: string; workspaceId?: string | null; userId?: string | null; message: string }
+export interface PaasLoginRequest { baseUrl: string; workspaceId: string; userId: string; accessToken: string }
+export interface PaasSession { id: string; baseUrl: string; workspaceId: string; userId: string; accessTokenHint: string; createdAt: number; expiresAt?: number | null }
+export interface PaasSyncPreview { pendingEvents: number; destination: string; eventTypes: string[]; warnings: string[] }
+
 export interface LocalAgentSummary { id: string; slug: string; name: string; description: string; category: string; sourcePath: string }
 export interface RuntimeDefinition { kind: RuntimeKind; label: string; scope: InstallScope; requiresProjectDir: boolean; supportsUninstall: boolean; supportsNativeRegistration: boolean; defaultTarget?: string | null }
 export interface RuntimeDetection { kind: RuntimeKind; label: string; detected: boolean; scope: InstallScope; commandPath?: string | null; configDir?: string | null; defaultTarget?: string | null; notes: string[] }
@@ -58,6 +68,16 @@ export interface SkillRef { id: string; source: string; version?: string | null 
 export interface McpServerRef { id: string; required: boolean }
 export interface PermissionPolicy { fileWrite: string; network: string; shell: string; externalPublish: string }
 export interface BundleSource { sourceId: string; sourcePath: string; upstreamLicense?: string | null }
+export interface AgentBundleDiff { oldBundleId: string; newBundleId: string; oldVersion: string; newVersion: string; changes: BundleChange[]; riskLevel: BundleDiffRiskLevel; requiresUserConfirmation: boolean }
+export interface BundleChange { kind: BundleChangeKind; path: string; oldValue?: string | null; newValue?: string | null; risk: BundleDiffRiskLevel }
+
+export interface InstructionInjectionPlan { bundleId: string; runtime: RuntimeKind; scope: string; targetFiles: InstructionTargetFile[]; warnings: string[] }
+export interface InstructionTargetFile { relativePath: string; absolutePath?: string | null; content: string; mergeStrategy: string }
+export interface McpConfigPlan { runtime: RuntimeKind; projectDir?: string | null; configFiles: McpConfigFile[]; warnings: string[] }
+export interface McpConfigFile { path: string; format: string; content: string; mergeStrategy: string }
+export interface ApprovalRequest { id: string; runtime?: RuntimeKind | null; action: string; resourceType: string; resourceId: string; reason: string; riskLevel: ApprovalRiskLevel; status: ApprovalStatus; createdAt: number; resolvedAt?: number | null }
+export interface LifecyclePlan { action: LifecycleAction; runtime?: RuntimeKind | null; installationId?: string | null; steps: LifecycleStep[]; warnings: string[]; reversible: boolean }
+export interface LifecycleStep { id: string; label: string; description: string; destructive: boolean }
 
 export interface McpPolicy { fileSystem: string; network: string; shell: string; audit: boolean; approvalRequired: boolean }
 export interface McpServerConfig { id: string; name: string; description: string; transport: McpTransport; command?: string | null; args: string[]; url?: string | null; required: boolean; enabled: boolean; managedBy: string; policy: McpPolicy }
