@@ -96,6 +96,8 @@ export interface SkillTargetPath { runtime: RuntimeKind; globalPath?: string | n
 export interface GeneratedArtifact { sourceId: string; generationId: string; runtime: string; relativePath: string; absolutePath: string; sizeBytes: number; modifiedAt?: number | null }
 export interface AuditEvent { id: string; actor: string; action: string; resourceType: string; resourceId: string; runtime?: RuntimeKind | null; severity: AuditSeverity; message: string; metadataJson: string; createdAt: number }
 export interface SyncOutboxEvent { id: string; aggregateType: string; aggregateId: string; eventType: string; payloadJson: string; status: SyncStatus; retryCount: number; createdAt: number; updatedAt: number }
+export interface SyncDebouncePolicy { debounceMs: number; maxBatchSize: number; maxRetryCount: number; flushOnShutdown: boolean }
+export interface SyncFlushPlan { enabled: boolean; destination: string; pendingCount: number; groupedCounts: Record<string, number>; debouncePolicy: SyncDebouncePolicy; warnings: string[] }
 export interface RiskFinding { severity: RiskSeverity; ruleId: string; message: string; matched: string }
 export interface RiskScanReport { totalFindings: number; findings: RiskFinding[] }
 
