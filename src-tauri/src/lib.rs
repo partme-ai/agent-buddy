@@ -39,7 +39,7 @@ use bundle_diff::AgentBundleDiff;
 use database::Database;
 use deeplink::DeepLinkRequest;
 use doctor::DoctorReport;
-use domain::{LocalAgentSummary, SourceRefreshResult};
+use domain::{AgentSourceSummary, LocalAgentSummary, SourceImportRequest, SourceRefreshResult};
 use generated::GeneratedArtifact;
 use instruction::InstructionInjectionPlan;
 use knowledge::{KnowledgeSnapshot, KnowledgeSpace};
@@ -86,9 +86,17 @@ fn preview_paas_sync(state: State<'_, AppState>) -> Result<PaasSyncPreview, Stri
 fn build_sync_flush_plan(state: State<'_, AppState>) -> Result<SyncFlushPlan, String> { let settings = settings::load_settings(&state.app_data_dir).map_err(to_message)?; let events = state.db.list_sync_outbox().map_err(to_message)?; Ok(sync_engine::build_flush_plan(&settings, &events)) }
 
 #[tauri::command]
-fn refresh_agent_source(state: State<'_, AppState>) -> Result<SourceRefreshResult, String> { let result = source::refresh_source(&state.app_data_dir).map_err(to_message)?; state.db.save_source_refresh(&result).map_err(to_message)?; state.db.save_audit_event(&audit_event("source.refresh", "agent_source", &result.source_id, None, AuditSeverity::Info, "refreshed agency-agents-zh source")).map_err(to_message)?; Ok(result) }
+fn refresh_agent_source(state: State<'_, AppState>) -> Result<SourceRefreshResult, String> { let result = source::refresh_source(&state.app_data_dir).map_err(to_message)?; state.db.save_source_refresh(&result).map_err(to_message)?; state.db.save_audit_event(&audit_event("source.refresh", "agent_source", &result.source_id, None, AuditSeverity::Info, "refreshed default agent source")).map_err(to_message)?; Ok(result) }
+#[tauri::command]
+fn import_agent_source(request: SourceImportRequest, state: State<'_, AppState>) -> Result<SourceRefreshResult, String> { let result = source::import_or_refresh_source(&state.app_data_dir, request).map_err(to_message)?; state.db.save_source_refresh(&result).map_err(to_message)?; state.db.save_audit_event(&audit_event("source.import", "agent_source", &result.source_id, None, AuditSeverity::Info, "imported local agent source")).map_err(to_message)?; Ok(result) }
+#[tauri::command]
+fn refresh_agent_source_by_id(source_id: String, state: State<'_, AppState>) -> Result<SourceRefreshResult, String> { let result = source::refresh_source_by_id(&state.app_data_dir, &source_id).map_err(to_message)?; state.db.save_source_refresh(&result).map_err(to_message)?; state.db.save_audit_event(&audit_event("source.refresh", "agent_source", &result.source_id, None, AuditSeverity::Info, "refreshed selected agent source")).map_err(to_message)?; Ok(result) }
+#[tauri::command]
+fn list_agent_sources(state: State<'_, AppState>) -> Result<Vec<AgentSourceSummary>, String> { source::list_sources(&state.app_data_dir).map_err(to_message) }
 #[tauri::command]
 fn list_agents(state: State<'_, AppState>) -> Result<Vec<LocalAgentSummary>, String> { let agents = source::list_agents(&state.app_data_dir).map_err(to_message)?; Ok(agents.iter().map(LocalAgentSummary::from).collect()) }
+#[tauri::command]
+fn list_agents_for_source(source_id: String, state: State<'_, AppState>) -> Result<Vec<LocalAgentSummary>, String> { let agents = source::list_agents_for_source(&state.app_data_dir, &source_id).map_err(to_message)?; Ok(agents.iter().map(LocalAgentSummary::from).collect()) }
 #[tauri::command]
 fn build_agent_bundles(agent_ids: Vec<String>, state: State<'_, AppState>) -> Result<Vec<AgentBundle>, String> { let all_agents = source::list_agents(&state.app_data_dir).map_err(to_message)?; let selected = select_agents(all_agents, &agent_ids); let targets = RuntimeKind::all(); Ok(selected.iter().map(|agent| bundle::bundle_from_local_agent(agent, targets.clone())).collect()) }
 #[tauri::command]
@@ -218,7 +226,8 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             load_settings, save_settings, get_paas_connection_status, get_paas_connection_info,
             preview_device_registration, preview_bundle_pull_request, create_paas_session,
-            preview_paas_sync, build_sync_flush_plan, refresh_agent_source, list_agents,
+            preview_paas_sync, build_sync_flush_plan, refresh_agent_source, import_agent_source,
+            refresh_agent_source_by_id, list_agent_sources, list_agents, list_agents_for_source,
             build_agent_bundles, summarize_local_bundles, build_bundle_diff, detect_runtimes,
             runtime_definitions, build_buddy_status_report, list_local_api_spec, get_install_plan,
             build_instruction_injection_plan, build_mcp_config_plan, build_runtime_mcp_config_preview,
