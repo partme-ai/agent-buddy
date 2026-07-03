@@ -2,6 +2,7 @@ mod adapters;
 mod approval;
 mod audit;
 mod bundle;
+mod bundle_catalog;
 mod bundle_diff;
 mod database;
 mod deeplink;
@@ -29,12 +30,14 @@ mod session_scanner;
 mod settings;
 mod skill;
 mod source;
+mod source_inspector;
 mod sync;
 mod sync_engine;
 
 use approval::{ApprovalRequest, ApprovalRiskLevel, ApprovalStatus};
 use audit::{audit_event, AuditEvent, AuditSeverity};
 use bundle::AgentBundle;
+use bundle_catalog::BundleCatalogItem;
 use bundle_diff::AgentBundleDiff;
 use database::Database;
 use deeplink::DeepLinkRequest;
@@ -58,6 +61,7 @@ use runtime_status::BuddyStatusReport;
 use session::{HandoffPack, SessionEvent};
 use session_scanner::SessionSyncPlan;
 use settings::AgentBuddySettings;
+use source_inspector::{AgentMarkdownPreview, AgentRuntimeConversionPreview, AgentSourceDetail, SourceImportRiskPreview};
 use std::path::PathBuf;
 use std::sync::Arc;
 use sync::{outbox_event, SyncOutboxEvent};
@@ -90,9 +94,26 @@ fn refresh_agent_source(state: State<'_, AppState>) -> Result<SourceRefreshResul
 #[tauri::command]
 fn import_agent_source(request: SourceImportRequest, state: State<'_, AppState>) -> Result<SourceRefreshResult, String> { let result = source::import_or_refresh_source(&state.app_data_dir, request).map_err(to_message)?; state.db.save_source_refresh(&result).map_err(to_message)?; state.db.save_audit_event(&audit_event("source.import", "agent_source", &result.source_id, None, AuditSeverity::Info, "imported local agent source")).map_err(to_message)?; Ok(result) }
 #[tauri::command]
+fn import_agent_source_from_deeplink(url: String, state: State<'_, AppState>) -> Result<SourceRefreshResult, String> { let parsed = deeplink::parse_deeplink(&url).map_err(to_message)?; let source_url = parsed.params.get("url").or_else(|| parsed.params.get("repo")).or_else(|| parsed.params.get("source")).cloned().ok_or_else(|| "install-source deeplink requires url, repo, or source parameter".to_string())?; let request = SourceImportRequest { source_url, name: parsed.params.get("name").cloned(), branch: parsed.params.get("branch").cloned(), source_kind: parsed.params.get("kind").cloned() }; import_agent_source(request, state) }
+#[tauri::command]
+fn preview_source_import_risk(request: SourceImportRequest) -> Result<SourceImportRiskPreview, String> { Ok(source_inspector::source_import_risk_preview(request)) }
+#[tauri::command]
 fn refresh_agent_source_by_id(source_id: String, state: State<'_, AppState>) -> Result<SourceRefreshResult, String> { let result = source::refresh_source_by_id(&state.app_data_dir, &source_id).map_err(to_message)?; state.db.save_source_refresh(&result).map_err(to_message)?; state.db.save_audit_event(&audit_event("source.refresh", "agent_source", &result.source_id, None, AuditSeverity::Info, "refreshed selected agent source")).map_err(to_message)?; Ok(result) }
 #[tauri::command]
 fn list_agent_sources(state: State<'_, AppState>) -> Result<Vec<AgentSourceSummary>, String> { source::list_sources(&state.app_data_dir).map_err(to_message) }
+#[tauri::command]
+fn get_agent_source_detail(source_id: String, state: State<'_, AppState>) -> Result<AgentSourceDetail, String> { source_inspector::source_detail(&state.app_data_dir, &source_id).map_err(to_message) }
+#[tauri::command]
+fn get_agent_markdown(agent_id: String, state: State<'_, AppState>) -> Result<AgentMarkdownPreview, String> { source_inspector::markdown_preview(&state.app_data_dir, &agent_id).map_err(to_message) }
+#[tauri::command]
+fn preview_agent_runtime_conversion(agent_id: String, runtime: RuntimeKind, state: State<'_, AppState>) -> Result<AgentRuntimeConversionPreview, String> { source_inspector::runtime_conversion_preview(&state.app_data_dir, &agent_id, runtime).map_err(to_message) }
+#[tauri::command]
+fn list_bundle_catalog(state: State<'_, AppState>) -> Result<Vec<BundleCatalogItem>, String> { bundle_catalog::list_bundle_catalog(&state.app_data_dir).map_err(to_message) }
+#[tauri::command]
+fn build_local_source_bundle(agent_id: String, state: State<'_, AppState>) -> Result<AgentBundle, String> { source_inspector::build_local_bundle(&state.app_data_dir, &agent_id).map_err(to_message) }
+#[tauri::command]
+fn build_source_bundle_diff(old_agent_id: String, new_agent_id: String, state: State<'_, AppState>) -> Result<AgentBundleDiff, String> { source_inspector::source_bundle_diff(&state.app_data_dir, &old_agent_id, &new_agent_id).map_err(to_message) }
+
 #[tauri::command]
 fn list_agents(state: State<'_, AppState>) -> Result<Vec<LocalAgentSummary>, String> { let agents = source::list_agents(&state.app_data_dir).map_err(to_message)?; Ok(agents.iter().map(LocalAgentSummary::from).collect()) }
 #[tauri::command]
@@ -102,7 +123,7 @@ fn build_agent_bundles(agent_ids: Vec<String>, state: State<'_, AppState>) -> Re
 #[tauri::command]
 fn summarize_local_bundles(agent_ids: Vec<String>, state: State<'_, AppState>) -> Result<Vec<PaasBundleSummary>, String> { Ok(build_agent_bundles(agent_ids, state)?.iter().map(paas::summarize_bundle).collect()) }
 #[tauri::command]
-fn build_bundle_diff(old_agent_id: String, new_agent_id: String, state: State<'_, AppState>) -> Result<AgentBundleDiff, String> { let all_agents = source::list_agents(&state.app_data_dir).map_err(to_message)?; let old_agent = all_agents.iter().find(|agent| agent.id == old_agent_id).ok_or_else(|| format!("old agent not found: {old_agent_id}"))?; let new_agent = all_agents.iter().find(|agent| agent.id == new_agent_id).ok_or_else(|| format!("new agent not found: {new_agent_id}"))?; let targets = RuntimeKind::all(); let old_bundle = bundle::bundle_from_local_agent(old_agent, targets.clone()); let new_bundle = bundle::bundle_from_local_agent(new_agent, targets); Ok(bundle_diff::diff_bundles(&old_bundle, &new_bundle)) }
+fn build_bundle_diff(old_agent_id: String, new_agent_id: String, state: State<'_, AppState>) -> Result<AgentBundleDiff, String> { build_source_bundle_diff(old_agent_id, new_agent_id, state) }
 
 #[tauri::command]
 fn detect_runtimes(state: State<'_, AppState>) -> Result<Vec<RuntimeDetection>, String> { let detections = adapters::detect_all(); for detection in &detections { state.db.save_runtime_detection(detection).map_err(to_message)?; } Ok(detections) }
@@ -227,15 +248,17 @@ pub fn run() {
             load_settings, save_settings, get_paas_connection_status, get_paas_connection_info,
             preview_device_registration, preview_bundle_pull_request, create_paas_session,
             preview_paas_sync, build_sync_flush_plan, refresh_agent_source, import_agent_source,
-            refresh_agent_source_by_id, list_agent_sources, list_agents, list_agents_for_source,
-            build_agent_bundles, summarize_local_bundles, build_bundle_diff, detect_runtimes,
-            runtime_definitions, build_buddy_status_report, list_local_api_spec, get_install_plan,
-            build_instruction_injection_plan, build_mcp_config_plan, build_runtime_mcp_config_preview,
-            list_marketplace_sources, build_skill_install_plan, build_marketplace_mcp_install_plan,
-            install_agents, list_installations, list_install_backups, list_install_events,
-            list_audit_events, list_sync_outbox, list_generated_artifacts, read_generated_artifact,
-            scan_text_risk, scan_generated_artifact, list_default_mcp_servers, list_skill_targets,
-            list_built_in_skills, create_approval_request, resolve_approval_request,
+            import_agent_source_from_deeplink, preview_source_import_risk, refresh_agent_source_by_id,
+            list_agent_sources, get_agent_source_detail, get_agent_markdown, preview_agent_runtime_conversion,
+            list_bundle_catalog, build_local_source_bundle, build_source_bundle_diff, list_agents,
+            list_agents_for_source, build_agent_bundles, summarize_local_bundles, build_bundle_diff,
+            detect_runtimes, runtime_definitions, build_buddy_status_report, list_local_api_spec,
+            get_install_plan, build_instruction_injection_plan, build_mcp_config_plan,
+            build_runtime_mcp_config_preview, list_marketplace_sources, build_skill_install_plan,
+            build_marketplace_mcp_install_plan, install_agents, list_installations, list_install_backups,
+            list_install_events, list_audit_events, list_sync_outbox, list_generated_artifacts,
+            read_generated_artifact, scan_text_risk, scan_generated_artifact, list_default_mcp_servers,
+            list_skill_targets, list_built_in_skills, create_approval_request, resolve_approval_request,
             repair_installation_plan, uninstall_installation_plan, upgrade_installation_plan,
             initialize_default_knowledge_spaces, list_knowledge_spaces, list_knowledge_snapshots,
             create_knowledge_snapshot, build_wiki_mirror_plan, build_rag_mirror_plan,
