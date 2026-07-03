@@ -53,19 +53,22 @@ Agent Buddy should first complete the local-first feature surface, then run vali
 | Approval flow | Written | Approval request/resolve models. |
 | Lifecycle plans | Written | Repair, uninstall, upgrade plan stubs. |
 | Deep Link install-source | Written | `agentbuddy://install-source?url=...` can parse and execute source import. |
+| WorkBuddy UI reference | Written | Added reference doc and CSS tokens for a marketplace/workspace-style Agent Buddy UI. |
 | Settings | Written | Local settings with device ID and retention flags. |
 | Frontend install UX | Written | Agent source import, source detail, source filter, agent list, runtime selector, install wizard, records. |
 | Frontend state center | Partial | Most panels exist; Settings/PaaS/Risk/MCP preview need richer UI. |
 | Per-runtime adapter split | Partial | Adapter manifest exists; central `adapters.rs` still needs physical split. |
 | Real local HTTP/MCP server | Pending | Route spec exists; daemon runtime not implemented. |
 | Platform Deep Link registration | Pending | Parser exists; OS registration not wired. |
+| AppShell refactor | Pending | WorkBuddy-inspired Sidebar / TopNav / FeaturedScenarios / InspectorDrawer structure is documented and tokenized. |
 | Build/typecheck/Tauri validation | Deferred | Intentionally postponed until feature surface is complete. |
 
 ## Next coding pass
 
-1. Add richer Settings/PaaS/Risk/MCP preview panels.
-2. Add local API daemon skeleton.
-3. Add retention cleanup plan for generated artifacts and backups.
-4. Add per-runtime Doctor details.
-5. Split central `adapters.rs` into per-runtime files after the manifest stabilizes.
-6. Only then run validation.
+1. Refactor frontend into WorkBuddy-inspired AppShell: Sidebar, TopNav, FeaturedScenarios, AgentGrid, InspectorDrawer.
+2. Add richer Settings/PaaS/Risk/MCP preview panels.
+3. Add local API daemon skeleton.
+4. Add retention cleanup plan for generated artifacts and backups.
+5. Add per-runtime Doctor details.
+6. Split central `adapters.rs` into per-runtime files after the manifest stabilizes.
+7. Only then run validation.
