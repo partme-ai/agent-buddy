@@ -14,6 +14,8 @@ Agent Buddy should first complete the local-first feature surface, then run vali
 | SQLite local state | Written | Sources, detections, installs, backups, events, audit, sync, memory, knowledge, session. |
 | 18 Runtime registry | Written | Covers the full `agency-agents-zh` target list. |
 | 18 Runtime adapter manifest | Written | Detect methods, install targets, generated formats, integration methods and support levels are declared. |
+| Agent Source import | Written | Users can import Git/GitHub/local agent sources, including `agency-agents-zh`, into local Buddy management. |
+| Source-scoped agent management | Written | Agents now carry `sourceId/sourceName`; UI supports source filter before runtime installation. |
 | Source scanner | Written | Local Git clone/pull, frontmatter parsing, agent list. |
 | Runtime converters | Written | Markdown, rules, TOML, SKILL.md, Gemini extension, OpenClaw workspace. |
 | Install Plan | Written | Preview, conflicts, warnings, post actions. |
@@ -45,7 +47,7 @@ Agent Buddy should first complete the local-first feature surface, then run vali
 | Approval flow | Written | Approval request/resolve models. |
 | Lifecycle plans | Written | Repair, uninstall, upgrade plan stubs. |
 | Settings | Written | Local settings with device ID and retention flags. |
-| Frontend install UX | Written | Agent list, runtime selector, install wizard, records. |
+| Frontend install UX | Written | Agent source import, source filter, agent list, runtime selector, install wizard, records. |
 | Frontend state center | Partial | Most panels exist; Settings/PaaS/Risk/MCP preview need richer UI. |
 | Per-runtime adapter split | Partial | Adapter manifest exists; central `adapters.rs` still needs physical split. |
 | Real local HTTP/MCP server | Pending | Route spec exists; daemon runtime not implemented. |
