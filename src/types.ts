@@ -54,7 +54,11 @@ export interface PaasSyncPreview { pendingEvents: number; destination: string; e
 export interface LocalApiSpec { bindHost: string; bindPort: number; baseUrl: string; routes: LocalApiRoute[] }
 export interface LocalApiRoute { method: string; path: string; purpose: string; authRequired: boolean; audit: boolean }
 
-export interface LocalAgentSummary { id: string; slug: string; name: string; description: string; category: string; sourcePath: string }
+export interface SourceImportRequest { sourceUrl: string; name?: string | null; branch?: string | null; sourceKind?: string | null }
+export interface AgentSourceSummary { id: string; name: string; sourceUrl: string; sourceKind: string; branch?: string | null; localPath: string; commitSha?: string | null; license?: string | null; agentCount: number; categoryCount: number; runtimeCount: number; importedAt: number; updatedAt: number; status: string }
+export interface SourceRefreshResult { sourceId: string; sourceName: string; sourceUrl: string; sourceKind: string; localPath: string; commitSha?: string | null; agentCount: number; categoryCount: number; runtimeCount: number; message: string }
+export interface LocalAgentSummary { id: string; sourceId: string; sourceName: string; slug: string; name: string; description: string; category: string; sourcePath: string }
+
 export interface RuntimeDefinition { kind: RuntimeKind; label: string; scope: InstallScope; requiresProjectDir: boolean; supportsUninstall: boolean; supportsNativeRegistration: boolean; defaultTarget?: string | null }
 export interface RuntimeDetection { kind: RuntimeKind; label: string; detected: boolean; scope: InstallScope; commandPath?: string | null; configDir?: string | null; defaultTarget?: string | null; notes: string[] }
 export interface RuntimeStatusSnapshot { runtime: RuntimeKind; runtimeKey: string; label: string; detected: boolean; commandPath?: string | null; configDir?: string | null; defaultTarget?: string | null; health: RuntimeHealth; notes: string[] }
@@ -101,12 +105,13 @@ export interface McpPolicy { fileSystem: string; network: string; shell: string;
 export interface McpServerConfig { id: string; name: string; description: string; transport: McpTransport; command?: string | null; args: string[]; url?: string | null; required: boolean; enabled: boolean; managedBy: string; policy: McpPolicy }
 export interface SkillPackage { id: string; name: string; description: string; source: string; version?: string | null; packagePath?: string | null; syncMode: SkillSyncMode; enabledTargets: RuntimeKind[] }
 export interface SkillTargetPath { runtime: RuntimeKind; globalPath?: string | null; projectRelativePath?: string | null; supportsSymlink: boolean }
-export interface MarketplaceSource { id: string; label: string; kind: MarketplaceKind; baseUrl?: string | null; description: string; enabled: boolean }
+export interface MarketplaceSource { id: string; label: string; kind: MarketplaceKind; baseUrl?: string | null; description: string; enabled: boolean; attributionRequired?: boolean }
 export interface MarketplaceTargetFile { runtime: RuntimeKind; path: string; installStrategy: string; contentPreview: string }
+export interface MarketplaceAttribution { sourceId: string; packageRef: string; licenseHint?: string | null; noticeRequired: boolean; noticeText: string }
 export interface SkillInstallRequest { sourceId: string; packageRef: string; runtimeTargets: RuntimeKind[]; projectDir?: string | null; syncMode: SkillSyncMode }
-export interface SkillInstallPlan { request: SkillInstallRequest; package: SkillPackage; targetFiles: MarketplaceTargetFile[]; warnings: string[] }
+export interface SkillInstallPlan { request: SkillInstallRequest; package: SkillPackage; targetFiles: MarketplaceTargetFile[]; riskReport?: RiskScanReport; attribution?: MarketplaceAttribution; warnings: string[] }
 export interface McpInstallRequest { sourceId: string; serverRef: string; runtimeTargets: RuntimeKind[]; projectDir?: string | null; enabled: boolean }
-export interface McpInstallPlan { request: McpInstallRequest; server: McpServerConfig; targetFiles: MarketplaceTargetFile[]; warnings: string[] }
+export interface McpInstallPlan { request: McpInstallRequest; server: McpServerConfig; targetFiles: MarketplaceTargetFile[]; riskReport?: RiskScanReport; attribution?: MarketplaceAttribution; warnings: string[] }
 
 export interface GeneratedArtifact { sourceId: string; generationId: string; runtime: string; relativePath: string; absolutePath: string; sizeBytes: number; modifiedAt?: number | null }
 export interface AuditEvent { id: string; actor: string; action: string; resourceType: string; resourceId: string; runtime?: RuntimeKind | null; severity: AuditSeverity; message: string; metadataJson: string; createdAt: number }
@@ -133,7 +138,5 @@ export interface KnowledgeContextPack { id: string; query: string; spaceIds: str
 
 export interface SessionEvent { id: string; sessionId: string; runtime?: RuntimeKind | null; eventType: SessionEventType; payloadJson: string; createdAt: number }
 export interface HandoffPack { id: string; fromRuntime?: RuntimeKind | null; toRuntime?: RuntimeKind | null; sessionId: string; goal: string; summary: string; knowledgeRefs: string[]; memoryRefs: string[]; openTasks: string[]; createdAt: number }
-export interface SessionScanSource { runtime: RuntimeKind; label: string; defaultPaths: string[]; detectedPaths: string[]; parser: string; supportsResume: boolean }
+export interface SessionScanSource { runtime: RuntimeKind; label: string; defaultPaths: string[]; detectedPaths: string[]; parser: string; supportsResume: boolean; supportLevel?: string }
 export interface SessionSyncPlan { sources: SessionScanSource[]; eventNormalizer: string; summaryStrategy: string; handoffEnabled: boolean; paasSyncEnabled: boolean; warnings: string[] }
-
-export interface SourceRefreshResult { sourceId: string; localPath: string; commitSha?: string | null; message: string }
