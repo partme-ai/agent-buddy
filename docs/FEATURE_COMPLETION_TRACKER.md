@@ -53,22 +53,32 @@ Agent Buddy should first complete the local-first feature surface, then run vali
 | Approval flow | Written | Approval request/resolve models. |
 | Lifecycle plans | Written | Repair, uninstall, upgrade plan stubs. |
 | Deep Link install-source | Written | `agentbuddy://install-source?url=...` can parse and execute source import. |
+| Full Agent Console menu | Written | Left navigation now covers Overview, Instances, Agents, Knowledge, Wiki, Memory, Sessions, and Settings. |
+| Overview Dashboard | Written | Aggregates metrics, global health score, runtime strip, sync flush plan, and recent events. |
+| Health Board | Written | Displays Agent Doctor, risks, recent tasks, sync failures, and runtime health table. |
+| Instance Console | Written | Derived instances cover runtime, agent installation, MCP, knowledge, memory, sessions, and local API. |
+| Instance install wizard | Written | Full source → agents → environment → config → plan → deploy flow. |
+| Agent Console pages | Written | Market, Teams, Experts, Abilities, Agent Knowledge, Agent Memory pages are wired. |
+| Knowledge / Wiki pages | Written | Knowledge center, help support, and API reference shells are implemented. |
+| Memory Service page | Written | Memory provider state, memory list, candidates, approval, and writeback preview are wired. |
+| Session pages | Written | Overview, active sessions, session history, and Handoff creation are wired. |
+| Settings pages | Written | General, security, notification, backup restore, and enterprise/PaaS settings are wired. |
 | WorkBuddy UI reference | Written | Added reference doc and CSS tokens for a marketplace/workspace-style Agent Buddy UI. |
 | Settings | Written | Local settings with device ID and retention flags. |
 | Frontend install UX | Written | Agent source import, source detail, source filter, agent list, runtime selector, install wizard, records. |
-| Frontend state center | Partial | Most panels exist; Settings/PaaS/Risk/MCP preview need richer UI. |
+| Frontend state center | Written | Console pages now distribute Settings/PaaS/Risk/MCP/Memory/Knowledge/Session panels across final menu. |
 | Per-runtime adapter split | Partial | Adapter manifest exists; central `adapters.rs` still needs physical split. |
 | Real local HTTP/MCP server | Pending | Route spec exists; daemon runtime not implemented. |
 | Platform Deep Link registration | Pending | Parser exists; OS registration not wired. |
-| AppShell refactor | Pending | WorkBuddy-inspired Sidebar / TopNav / FeaturedScenarios / InspectorDrawer structure is documented and tokenized. |
 | Build/typecheck/Tauri validation | Deferred | Intentionally postponed until feature surface is complete. |
 
 ## Next coding pass
 
-1. Refactor frontend into WorkBuddy-inspired AppShell: Sidebar, TopNav, FeaturedScenarios, AgentGrid, InspectorDrawer.
-2. Add richer Settings/PaaS/Risk/MCP preview panels.
-3. Add local API daemon skeleton.
-4. Add retention cleanup plan for generated artifacts and backups.
-5. Add per-runtime Doctor details.
-6. Split central `adapters.rs` into per-runtime files after the manifest stabilizes.
-7. Only then run validation.
+1. Split `src/ConsoleApp.tsx` into `console/`, `pages/`, and `components/` modules.
+2. Add backend aggregation commands for overview dashboards and instance lists.
+3. Add real `instances`, `instance_groups`, and `instance_tags` tables after the UI model stabilizes.
+4. Add local API daemon skeleton.
+5. Add retention cleanup plan for generated artifacts and backups.
+6. Add per-runtime Doctor details.
+7. Split central `adapters.rs` into per-runtime files after the manifest stabilizes.
+8. Only then run validation.
