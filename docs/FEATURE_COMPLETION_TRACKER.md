@@ -15,7 +15,13 @@ Agent Buddy should first complete the local-first feature surface, then run vali
 | 18 Runtime registry | Written | Covers the full `agency-agents-zh` target list. |
 | 18 Runtime adapter manifest | Written | Detect methods, install targets, generated formats, integration methods and support levels are declared. |
 | Agent Source import | Written | Users can import Git/GitHub/local agent sources, including `agency-agents-zh`, into local Buddy management. |
-| Source-scoped agent management | Written | Agents now carry `sourceId/sourceName`; UI supports source filter before runtime installation. |
+| Source-scoped agent management | Written | Agents carry `sourceId/sourceName`; UI supports source filter before runtime installation. |
+| Source Detail | Written | Source detail includes agents, categories, risk report, license/notice preview, and warnings. |
+| Raw Markdown preview | Written | Single-agent raw Markdown preview is available before install. |
+| Runtime conversion preview | Written | Single-agent runtime conversion preview is available for selected RuntimeKind. |
+| Source import risk scan | Written | Import risk preview supports local directory sampling and remote URL metadata scan. |
+| License / notice display | Written | Source detail surfaces license file preview and attribution notice requirements. |
+| Unified Bundle Catalog | Written | Local Source Bundles are listed with the same catalog shape reserved for PaaS Bundles. |
 | Source scanner | Written | Local Git clone/pull, frontmatter parsing, agent list. |
 | Runtime converters | Written | Markdown, rules, TOML, SKILL.md, Gemini extension, OpenClaw workspace. |
 | Install Plan | Written | Preview, conflicts, warnings, post actions. |
@@ -24,7 +30,7 @@ Agent Buddy should first complete the local-first feature surface, then run vali
 | Hermes categories | Written | Category filter exists in install target. |
 | DeerFlow custom path | Written | Custom directory / `DEERFLOW_SKILLS_DIR` path support. |
 | Agent Bundle model | Written | Local bundle preview and PaaS-compatible summaries. |
-| Bundle diff | Written | Upgrade risk/diff model exists. |
+| Bundle diff | Written | Upgrade risk/diff model exists; source-scoped diff command added. |
 | Instruction injection | Written | Instruction plan with managed section. |
 | MCP registry | Written | Buddy Memory/Knowledge/Session/Approval MCP definitions. |
 | MCP config preview | Written | Claude, Codex, OpenCode, Hermes, WorkBuddy, OpenClaw and generic config plans. |
@@ -32,7 +38,7 @@ Agent Buddy should first complete the local-first feature surface, then run vali
 | Marketplace plans | Written | SkillHub, skills.sh, GitHub, public MCP, local source plans with attribution/risk. |
 | Marketplace attribution | Written | Skill/MCP plans include source attribution and notice hints. |
 | Generated artifacts browser | Written | List/read generated artifacts. |
-| Risk scanner | Written | Text and generated artifact scan; marketplace plans now include risk report. |
+| Risk scanner | Written | Text and generated artifact scan; marketplace and source import plans now include risk report. |
 | Memory center | Written | Candidate and item model, propose/approve flow. |
 | Knowledge mirror metadata | Written | Spaces and snapshots. |
 | Knowledge package plan | Written | Mirror/context pack models exist. |
@@ -46,8 +52,9 @@ Agent Buddy should first complete the local-first feature surface, then run vali
 | Runtime status report | Written | Device/runtime/install status snapshot. |
 | Approval flow | Written | Approval request/resolve models. |
 | Lifecycle plans | Written | Repair, uninstall, upgrade plan stubs. |
+| Deep Link install-source | Written | `agentbuddy://install-source?url=...` can parse and execute source import. |
 | Settings | Written | Local settings with device ID and retention flags. |
-| Frontend install UX | Written | Agent source import, source filter, agent list, runtime selector, install wizard, records. |
+| Frontend install UX | Written | Agent source import, source detail, source filter, agent list, runtime selector, install wizard, records. |
 | Frontend state center | Partial | Most panels exist; Settings/PaaS/Risk/MCP preview need richer UI. |
 | Per-runtime adapter split | Partial | Adapter manifest exists; central `adapters.rs` still needs physical split. |
 | Real local HTTP/MCP server | Pending | Route spec exists; daemon runtime not implemented. |
