@@ -33,6 +33,7 @@ export type MemoryStatus = 'pending' | 'active' | 'rejected' | 'archived'
 export type SessionEventType = 'session-created' | 'user-message-received' | 'agent-message-generated' | 'knowledge-searched' | 'memory-read' | 'memory-proposed' | 'skill-invoked' | 'mcp-tool-called' | 'tool-result-received' | 'file-changed' | 'approval-requested' | 'approval-resolved' | 'session-summarized' | 'handoff-created' | 'error'
 export type BundleChangeKind = 'profile-changed' | 'instruction-changed' | 'knowledge-changed' | 'memory-policy-changed' | 'skill-added' | 'skill-removed' | 'mcp-added' | 'mcp-removed' | 'permission-changed' | 'runtime-target-added' | 'runtime-target-removed' | 'metadata-changed'
 export type BundleDiffRiskLevel = 'low' | 'medium' | 'high' | 'critical'
+export type BundleOrigin = 'agent-paas' | 'local-source'
 export type ApprovalRiskLevel = 'low' | 'medium' | 'high' | 'critical'
 export type ApprovalStatus = 'pending' | 'approved' | 'denied' | 'expired'
 export type LifecycleAction = 'install' | 'reinstall' | 'upgrade' | 'uninstall' | 'repair' | 'rollback'
@@ -58,6 +59,12 @@ export interface SourceImportRequest { sourceUrl: string; name?: string | null; 
 export interface AgentSourceSummary { id: string; name: string; sourceUrl: string; sourceKind: string; branch?: string | null; localPath: string; commitSha?: string | null; license?: string | null; agentCount: number; categoryCount: number; runtimeCount: number; importedAt: number; updatedAt: number; status: string }
 export interface SourceRefreshResult { sourceId: string; sourceName: string; sourceUrl: string; sourceKind: string; localPath: string; commitSha?: string | null; agentCount: number; categoryCount: number; runtimeCount: number; message: string }
 export interface LocalAgentSummary { id: string; sourceId: string; sourceName: string; slug: string; name: string; description: string; category: string; sourcePath: string }
+export interface SourceLicenseNotice { sourceId: string; licenseFile?: string | null; licenseTextPreview?: string | null; noticeRequired: boolean; noticeText: string }
+export interface AgentSourceDetail { source: AgentSourceSummary; agents: LocalAgentSummary[]; categories: string[]; licenseNotice: SourceLicenseNotice; riskReport: RiskScanReport; warnings: string[] }
+export interface AgentMarkdownPreview { agentId: string; sourceId: string; sourceName: string; slug: string; name: string; category: string; sourcePath: string; rawMarkdown: string }
+export interface GeneratedFile { relativePath: string; content: string }
+export interface AgentRuntimeConversionPreview { agentId: string; runtime: RuntimeKind; files: GeneratedFile[]; riskReport: RiskScanReport; warnings: string[] }
+export interface SourceImportRiskPreview { request: SourceImportRequest; sourceKind: string; riskReport: RiskScanReport; warnings: string[]; notice: string }
 
 export interface RuntimeDefinition { kind: RuntimeKind; label: string; scope: InstallScope; requiresProjectDir: boolean; supportsUninstall: boolean; supportsNativeRegistration: boolean; defaultTarget?: string | null }
 export interface RuntimeDetection { kind: RuntimeKind; label: string; detected: boolean; scope: InstallScope; commandPath?: string | null; configDir?: string | null; defaultTarget?: string | null; notes: string[] }
@@ -90,6 +97,7 @@ export interface PermissionPolicy { fileWrite: string; network: string; shell: s
 export interface BundleSource { sourceId: string; sourcePath: string; upstreamLicense?: string | null }
 export interface AgentBundleDiff { oldBundleId: string; newBundleId: string; oldVersion: string; newVersion: string; changes: BundleChange[]; riskLevel: BundleDiffRiskLevel; requiresUserConfirmation: boolean }
 export interface BundleChange { kind: BundleChangeKind; path: string; oldValue?: string | null; newValue?: string | null; risk: BundleDiffRiskLevel }
+export interface BundleCatalogItem { origin: BundleOrigin; bundleId: string; version: string; name: string; description: string; category: string; sourceId: string; sourceName: string; targetCount: number; skillCount: number; mcpCount: number; knowledgeSpaceCount: number; memoryProvider: string; localAgentId?: string | null; installable: boolean }
 
 export interface InstructionInjectionPlan { bundleId: string; runtime: RuntimeKind; scope: string; targetFiles: InstructionTargetFile[]; warnings: string[] }
 export interface InstructionTargetFile { relativePath: string; absolutePath?: string | null; content: string; mergeStrategy: string }
