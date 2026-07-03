@@ -1,0 +1,213 @@
+/* Final menu page completion styles. */
+
+.complete-console .console-menu-group button {
+  min-height: 36px;
+}
+
+.complete-console .console-menu-group button span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.complete-console .market-hero button,
+.complete-console .detail-hero button {
+  align-self: flex-start;
+  background: #ffffff;
+  color: #111827;
+  border-radius: 14px;
+  padding: 11px 16px;
+  font-weight: 800;
+  box-shadow: 0 12px 26px rgba(0,0,0,.12);
+}
+
+.complete-console .page-actions {
+  padding: 10px;
+  background: rgba(255,255,255,.72);
+  border: 1px solid rgba(226,232,240,.9);
+  border-radius: 18px;
+  backdrop-filter: blur(14px);
+}
+
+.complete-console .page-actions button,
+.complete-console .card-actions button,
+.complete-console .compact-card button,
+.complete-console .panel > button {
+  min-height: 38px;
+}
+
+.complete-console .form-stack {
+  padding: 2px;
+}
+
+.complete-console .form-stack input,
+.complete-console .form-stack select {
+  height: 42px;
+}
+
+.complete-console .compact-list {
+  scrollbar-gutter: stable;
+}
+
+.complete-console .runtime-strip {
+  max-height: 260px;
+  overflow: auto;
+  padding: 2px;
+}
+
+.complete-console .runtime-pill {
+  min-height: 34px;
+}
+
+.complete-console .agent-mini-grid {
+  max-height: 520px;
+  border: 1px solid rgba(226,232,240,.72);
+  border-radius: 18px;
+  background: rgba(248,250,252,.62);
+  padding: 10px;
+}
+
+.complete-console .agent-mini strong {
+  color: #111827;
+  font-size: 13px;
+}
+
+.complete-console .agent-mini span {
+  color: #64748b;
+  font-size: 12px;
+}
+
+.complete-console .expert-grid {
+  align-items: stretch;
+}
+
+.complete-console .expert-card,
+.complete-console .instance-card,
+.complete-console .market-card {
+  position: relative;
+  overflow: hidden;
+}
+
+.complete-console .expert-card::before,
+.complete-console .instance-card::before,
+.complete-console .market-card::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 3px;
+  background: linear-gradient(90deg, rgba(59,130,246,.88), rgba(139,92,246,.72));
+  opacity: .75;
+}
+
+.complete-console .expert-card.selected::before {
+  height: 4px;
+  background: linear-gradient(90deg, #2563eb, #10b981);
+}
+
+.complete-console .market-card .avatar,
+.complete-console .expert-card .avatar {
+  font-size: 18px;
+}
+
+.complete-console .code-preview {
+  border: 1px solid rgba(15,23,42,.88);
+}
+
+.complete-console .code-preview:empty::before {
+  content: 'No preview loaded.';
+  color: #94a3b8;
+}
+
+.complete-console .table-wrap {
+  background: #fff;
+}
+
+.complete-console table td:first-child,
+.complete-console table th:first-child {
+  padding-left: 16px;
+}
+
+.complete-console table td:last-child,
+.complete-console table th:last-child {
+  padding-right: 16px;
+}
+
+.complete-console .settings-grid label {
+  background: rgba(248,250,252,.86);
+  border: 1px solid rgba(226,232,240,.88);
+  border-radius: 16px;
+  padding: 12px;
+}
+
+.complete-console .settings-grid label input[type='checkbox'] {
+  width: 18px;
+  height: 18px;
+  margin-right: 8px;
+}
+
+.complete-console .timeline {
+  position: relative;
+}
+
+.complete-console .timeline::before {
+  content: '';
+  position: absolute;
+  left: 9px;
+  top: 12px;
+  bottom: 12px;
+  width: 2px;
+  background: #e5e7eb;
+}
+
+.complete-console .timeline-item {
+  position: relative;
+  margin-left: 18px;
+}
+
+.complete-console .timeline-item::before {
+  content: '';
+  position: absolute;
+  left: -24px;
+  top: 14px;
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  background: #3b82f6;
+  box-shadow: 0 0 0 4px #dbeafe;
+}
+
+.complete-console .key-value {
+  min-height: 42px;
+}
+
+.complete-console .content-cards .info-card {
+  border-top: 3px solid rgba(59,130,246,.65);
+}
+
+.complete-console .empty-state {
+  min-height: 110px;
+  display: grid;
+  place-items: center;
+}
+
+.complete-console .status-badge {
+  width: fit-content;
+}
+
+@media (min-width: 1500px) {
+  .complete-console .expert-grid {
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  }
+}
+
+@media (max-width: 900px) {
+  .complete-console .console-sidebar-metrics {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .complete-console .console-menu {
+    grid-template-columns: 1fr;
+  }
+}
