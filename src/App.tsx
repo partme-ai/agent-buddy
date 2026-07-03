@@ -1,3 +1,3 @@
-import ConsoleApp from './ConsoleApp'
+import ConsoleAppComplete from './ConsoleAppComplete'
 
-export default ConsoleApp
+export default ConsoleAppComplete
