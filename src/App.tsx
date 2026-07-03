@@ -5,8 +5,10 @@ import {
   createHandoffPack,
   detectRuntimes,
   getInstallPlan,
+  importAgentSource,
   initializeDefaultKnowledgeSpaces,
   installAgents,
+  listAgentSources,
   listAgents,
   listAuditEvents,
   listBuiltInSkills,
@@ -27,6 +29,7 @@ import {
   proposeMemory,
   readGeneratedArtifact,
   refreshAgentSource,
+  refreshAgentSourceById,
   restoreBackup,
   runDoctor,
   runtimeDefinitions,
@@ -35,6 +38,7 @@ import {
 import type {
   AgentBundle,
   AgentInstallation,
+  AgentSourceSummary,
   AuditEvent,
   DeepLinkRequest,
   DoctorReport,
@@ -62,6 +66,11 @@ import type {
 } from './types'
 
 function App() {
+  const [agentSources, setAgentSources] = useState<AgentSourceSummary[]>([])
+  const [selectedSourceId, setSelectedSourceId] = useState('all')
+  const [sourceUrl, setSourceUrl] = useState('https://github.com/jnMetaCode/agency-agents-zh')
+  const [sourceName, setSourceName] = useState('agency-agents-zh')
+  const [sourceBranch, setSourceBranch] = useState('')
   const [agents, setAgents] = useState<LocalAgentSummary[]>([])
   const [bundles, setBundles] = useState<AgentBundle[]>([])
   const [definitions, setDefinitions] = useState<RuntimeDefinition[]>([])
@@ -101,45 +110,10 @@ function App() {
   const [busy, setBusy] = useState(false)
 
   async function reload() {
-    const [
-      nextDefinitions,
-      nextAgents,
-      nextRuntimes,
-      nextInstallations,
-      nextBackups,
-      nextEvents,
-      nextAuditEvents,
-      nextSyncOutbox,
-      nextArtifacts,
-      nextMcpServers,
-      nextBuiltInSkills,
-      nextSkillTargets,
-      nextKnowledgeSpaces,
-      nextKnowledgeSnapshots,
-      nextMemoryItems,
-      nextMemoryCandidates,
-      nextSessionEvents,
-      nextHandoffPacks,
-    ] = await Promise.all([
-      runtimeDefinitions(),
-      listAgents(),
-      detectRuntimes(),
-      listInstallations(),
-      listInstallBackups(),
-      listInstallEvents(),
-      listAuditEvents(),
-      listSyncOutbox(),
-      listGeneratedArtifacts(),
-      listDefaultMcpServers(),
-      listBuiltInSkills(),
-      listSkillTargets(),
-      listKnowledgeSpaces(),
-      listKnowledgeSnapshots(),
-      listMemoryItems(),
-      listMemoryCandidates(),
-      listSessionEvents(),
-      listHandoffPacks(),
+    const [nextSources, nextDefinitions, nextAgents, nextRuntimes, nextInstallations, nextBackups, nextEvents, nextAuditEvents, nextSyncOutbox, nextArtifacts, nextMcpServers, nextBuiltInSkills, nextSkillTargets, nextKnowledgeSpaces, nextKnowledgeSnapshots, nextMemoryItems, nextMemoryCandidates, nextSessionEvents, nextHandoffPacks] = await Promise.all([
+      listAgentSources(), runtimeDefinitions(), listAgents(), detectRuntimes(), listInstallations(), listInstallBackups(), listInstallEvents(), listAuditEvents(), listSyncOutbox(), listGeneratedArtifacts(), listDefaultMcpServers(), listBuiltInSkills(), listSkillTargets(), listKnowledgeSpaces(), listKnowledgeSnapshots(), listMemoryItems(), listMemoryCandidates(), listSessionEvents(), listHandoffPacks(),
     ])
+    setAgentSources(nextSources)
     setDefinitions(nextDefinitions)
     setAgents(nextAgents)
     setRuntimes(nextRuntimes)
@@ -160,34 +134,28 @@ function App() {
     setHandoffPacks(nextHandoffPacks)
   }
 
-  useEffect(() => {
-    reload().catch((error) => setStatus(String(error)))
-  }, [])
+  useEffect(() => { reload().catch((error) => setStatus(String(error))) }, [])
 
-  const categories = useMemo(() => ['all', ...Array.from(new Set(agents.map((agent) => agent.category))).sort()], [agents])
+  const sourceScopedAgents = useMemo(() => selectedSourceId === 'all' ? agents : agents.filter((agent) => agent.sourceId === selectedSourceId), [agents, selectedSourceId])
+  const categories = useMemo(() => ['all', ...Array.from(new Set(sourceScopedAgents.map((agent) => agent.category))).sort()], [sourceScopedAgents])
   const definitionByRuntime = useMemo(() => new Map(definitions.map((item) => [item.kind, item])), [definitions])
   const filteredAgents = useMemo(() => {
     const normalized = query.toLowerCase()
-    return agents.filter((agent) => {
+    return sourceScopedAgents.filter((agent) => {
       const matchesCategory = category === 'all' || agent.category === category
-      const matchesQuery = !normalized || `${agent.name} ${agent.description} ${agent.slug}`.toLowerCase().includes(normalized)
+      const matchesQuery = !normalized || `${agent.name} ${agent.description} ${agent.slug} ${agent.sourceName}`.toLowerCase().includes(normalized)
       return matchesCategory && matchesQuery
     })
-  }, [agents, category, query])
-  const sourceStats = useMemo(() => ({ agents: agents.length, categories: new Set(agents.map((agent) => agent.category)).size, runtimes: definitions.length, installed: installations.length, artifacts: generatedArtifacts.length, pendingSync: syncOutbox.filter((event) => event.status === 'pending').length }), [agents, definitions, generatedArtifacts, installations, syncOutbox])
+  }, [sourceScopedAgents, category, query])
+  const sourceStats = useMemo(() => ({ sources: agentSources.length, agents: sourceScopedAgents.length, categories: new Set(sourceScopedAgents.map((agent) => agent.category)).size, runtimes: definitions.length, installed: installations.length, artifacts: generatedArtifacts.length, pendingSync: syncOutbox.filter((event) => event.status === 'pending').length }), [agentSources, sourceScopedAgents, definitions, generatedArtifacts, installations, syncOutbox])
 
   function toggleAgent(id: string) { setSelectedAgents((current) => toggleSet(current, id)); setPlan(null) }
   function toggleRuntime(kind: RuntimeKind) { setSelectedRuntimes((current) => toggleSet(current, kind)); setPlan(null) }
-
-  function selectedTargets(): InstallTarget[] {
-    return Array.from(selectedRuntimes).map((runtime) => {
-      const definition = definitionByRuntime.get(runtime)
-      return { runtime, projectDir: definition?.scope === 'project' ? projectDir || null : null, customDir: definition?.scope === 'custom' ? customDir || null : null, categoryFilters: runtime === 'hermes' ? hermesCategories.split(',').map((item) => item.trim()).filter(Boolean) : [] }
-    })
-  }
-
+  function selectedTargets(): InstallTarget[] { return Array.from(selectedRuntimes).map((runtime) => { const definition = definitionByRuntime.get(runtime); return { runtime, projectDir: definition?.scope === 'project' ? projectDir || null : null, customDir: definition?.scope === 'custom' ? customDir || null : null, categoryFilters: runtime === 'hermes' ? hermesCategories.split(',').map((item) => item.trim()).filter(Boolean) : [] } }) }
   async function withBusy(work: () => Promise<void>) { setBusy(true); try { await work() } catch (error) { setStatus(String(error)) } finally { setBusy(false) } }
-  async function handleRefreshSource() { await withBusy(async () => { const result = await refreshAgentSource(); setStatus(result.message); setPlan(null); await reload() }) }
+  async function handleRefreshSource() { await withBusy(async () => { const result = await refreshAgentSource(); setSelectedSourceId(result.sourceId); setStatus(result.message); setPlan(null); await reload() }) }
+  async function handleImportSource() { await withBusy(async () => { const result = await importAgentSource({ sourceUrl, name: sourceName || null, branch: sourceBranch || null, sourceKind: null }); setSelectedSourceId(result.sourceId); setStatus(`Imported ${result.agentCount} agents from ${result.sourceName}.`); setSelectedAgents(new Set()); setPlan(null); await reload() }) }
+  async function handleRefreshSelectedSource() { await withBusy(async () => { if (selectedSourceId === 'all') { await handleRefreshSource(); return } const result = await refreshAgentSourceById(selectedSourceId); setStatus(result.message); setPlan(null); await reload() }) }
   async function handleBuildBundles() { await withBusy(async () => { const nextBundles = await buildAgentBundles(Array.from(selectedAgents)); setBundles(nextBundles); setStatus(`Built ${nextBundles.length} local Agent Bundle preview(s).`) }) }
   async function handlePlan() { await withBusy(async () => { const nextPlan = await getInstallPlan(Array.from(selectedAgents), selectedTargets()); setPlan(nextPlan); setStatus(`Install plan ready: ${nextPlan.totalAgents} agents, ${nextPlan.totalFiles} files.`) }) }
   async function handleInstall() { await withBusy(async () => { const result = await installAgents(Array.from(selectedAgents), selectedTargets()); setStatus(`Installed ${result.reduce((sum, item) => sum + item.filesWritten, 0)} files.`); setPlan(null); await reload() }) }
@@ -203,15 +171,16 @@ function App() {
 
   return (
     <main className="shell">
-      <section className="hero"><div><div className="eyebrow">Agent Buddy MVP</div><h1>Install agency-agents-zh agents into all 18 supported local AI runtimes.</h1><p>Local-first Tauri/Rust client with Agent Bundle previews, runtime detection, install-plan preview, generated artifact cache, backup restore, Memory, Knowledge, Session, Doctor, Deep Links, Audit, and Sync Outbox.</p></div><div className="hero-actions"><button disabled={busy} onClick={handleRefreshSource}>Refresh Source</button><button disabled={busy} onClick={handleDoctor}>Run Doctor</button></div></section>
+      <section className="hero"><div><div className="eyebrow">Agent Buddy MVP</div><h1>Import agents from Agent PaaS, GitHub, or local folders, then install them into local runtimes.</h1><p>Agent Buddy now manages Agent Sources as first-class objects: PaaS bundles, Git repos such as agency-agents-zh, and local directories can all enter the same source → agent → install flow.</p></div><div className="hero-actions"><button disabled={busy} onClick={handleRefreshSource}>Refresh Default Source</button><button disabled={busy} onClick={handleDoctor}>Run Doctor</button></div></section>
       <div className="status">{status}</div>
-      <section className="stats-grid"><Stat label="Agents" value={sourceStats.agents} /><Stat label="Categories" value={sourceStats.categories} /><Stat label="Runtimes" value={sourceStats.runtimes} /><Stat label="Installations" value={sourceStats.installed} /><Stat label="Artifacts" value={sourceStats.artifacts} /><Stat label="Pending Sync" value={sourceStats.pendingSync} /></section>
+      <section className="stats-grid"><Stat label="Sources" value={sourceStats.sources} /><Stat label="Agents" value={sourceStats.agents} /><Stat label="Categories" value={sourceStats.categories} /><Stat label="Runtimes" value={sourceStats.runtimes} /><Stat label="Installations" value={sourceStats.installed} /><Stat label="Pending Sync" value={sourceStats.pendingSync} /></section>
+      <SourcePanel sources={agentSources} selectedSourceId={selectedSourceId} sourceUrl={sourceUrl} sourceName={sourceName} sourceBranch={sourceBranch} busy={busy} setSelectedSourceId={setSelectedSourceId} setSourceUrl={setSourceUrl} setSourceName={setSourceName} setSourceBranch={setSourceBranch} onImport={handleImportSource} onRefresh={handleRefreshSelectedSource} />
       <section className="grid two"><RuntimePanel runtimes={runtimes} selectedRuntimes={selectedRuntimes} definitionByRuntime={definitionByRuntime} onToggle={toggleRuntime} /><InstallWizard selectedAgents={selectedAgents} selectedRuntimes={selectedRuntimes} projectDir={projectDir} customDir={customDir} hermesCategories={hermesCategories} busy={busy} setProjectDir={setProjectDir} setCustomDir={setCustomDir} setHermesCategories={setHermesCategories} onBuildBundles={handleBuildBundles} onPlan={handlePlan} onInstall={handleInstall} /></section>
       {doctor && <DoctorPanel report={doctor} />}{bundles.length > 0 && <BundlePanel bundles={bundles} />}{plan && <InstallPlanPanel plan={plan} />}
       <section className="grid two"><McpPanel servers={mcpServers} /><SkillPanel skills={builtInSkills} targets={skillTargets} /></section>
       <section className="grid two"><KnowledgeMemoryPanel spaces={knowledgeSpaces} snapshots={knowledgeSnapshots} memoryItems={memoryItems} candidates={memoryCandidates} memoryDraft={memoryDraft} setMemoryDraft={setMemoryDraft} onInitKnowledge={handleInitKnowledge} onProposeMemory={handleProposeMemory} onApproveMemory={handleApproveMemory} /><SessionHandoffPanel sessionId={sessionId} setSessionId={setSessionId} handoffGoal={handoffGoal} setHandoffGoal={setHandoffGoal} handoffSummary={handoffSummary} setHandoffSummary={setHandoffSummary} events={sessionEvents} handoffs={handoffPacks} onCreateHandoff={handleCreateHandoff} /></section>
       <section className="grid two"><DeepLinkPanel url={deeplinkUrl} setUrl={setDeeplinkUrl} result={deeplinkResult} busy={busy} onParse={handleParseDeepLink} /><section className="panel"><div className="panel-header"><h2>Recent Events</h2><span>{events.length}</span></div><EventList events={events} /></section></section>
-      <section className="panel"><div className="panel-header"><h2>Agents</h2><span>{filteredAgents.length} shown · {agents.length} total</span></div><div className="filters"><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search agents" /><select value={category} onChange={(event) => setCategory(event.target.value)}>{categories.map((item) => <option key={item} value={item}>{item}</option>)}</select><button onClick={() => setSelectedAgents(new Set(filteredAgents.map((agent) => agent.id)))}>Select shown</button><button onClick={() => setSelectedAgents(new Set())}>Clear</button></div><div className="agent-list">{filteredAgents.map((agent) => <label key={agent.id} className="agent-card"><input checked={selectedAgents.has(agent.id)} onChange={() => toggleAgent(agent.id)} type="checkbox" /><div><strong>{agent.name || agent.slug}</strong><span>{agent.category} · {agent.slug}</span><p>{agent.description}</p></div></label>)}</div></section>
+      <section className="panel"><div className="panel-header"><h2>Agents</h2><span>{filteredAgents.length} shown · {sourceScopedAgents.length} in selected source scope</span></div><div className="filters"><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search agents" /><select value={category} onChange={(event) => setCategory(event.target.value)}>{categories.map((item) => <option key={item} value={item}>{item}</option>)}</select><button onClick={() => setSelectedAgents(new Set(filteredAgents.map((agent) => agent.id)))}>Select shown</button><button onClick={() => setSelectedAgents(new Set())}>Clear</button></div><div className="agent-list">{filteredAgents.map((agent) => <label key={agent.id} className="agent-card"><input checked={selectedAgents.has(agent.id)} onChange={() => toggleAgent(agent.id)} type="checkbox" /><div><strong>{agent.name || agent.slug}</strong><span>{agent.sourceName} · {agent.category} · {agent.slug}</span><p>{agent.description}</p></div></label>)}</div></section>
       <section className="grid two"><InstallationPanel installations={installations} busy={busy} onUninstall={handleUninstall} /><BackupPanel backups={backups} busy={busy} onRestore={handleRestoreBackup} /></section>
       <section className="grid two"><GeneratedArtifactsPanel artifacts={generatedArtifacts} preview={artifactPreview} onRead={handleReadArtifact} /><AuditSyncPanel auditEvents={auditEvents} syncOutbox={syncOutbox} /></section>
     </main>
@@ -219,6 +188,7 @@ function App() {
 }
 
 function Stat({ label, value }: { label: string; value: number }) { return <div className="stat-card"><strong>{value}</strong><span>{label}</span></div> }
+function SourcePanel(props: { sources: AgentSourceSummary[]; selectedSourceId: string; sourceUrl: string; sourceName: string; sourceBranch: string; busy: boolean; setSelectedSourceId: (value: string) => void; setSourceUrl: (value: string) => void; setSourceName: (value: string) => void; setSourceBranch: (value: string) => void; onImport: () => void; onRefresh: () => void }) { return <section className="panel"><div className="panel-header"><h2>Agent Sources</h2><span>{props.sources.length} sources</span></div><div className="filters"><input value={props.sourceUrl} onChange={(event) => props.setSourceUrl(event.target.value)} placeholder="https://github.com/jnMetaCode/agency-agents-zh or /local/path" /><input value={props.sourceName} onChange={(event) => props.setSourceName(event.target.value)} placeholder="source name" /><input value={props.sourceBranch} onChange={(event) => props.setSourceBranch(event.target.value)} placeholder="branch optional" /><button disabled={props.busy || !props.sourceUrl} onClick={props.onImport}>Import Source</button><button disabled={props.busy} onClick={props.onRefresh}>Refresh Selected</button></div><div className="filters"><select value={props.selectedSourceId} onChange={(event) => props.setSelectedSourceId(event.target.value)}><option value="all">All sources</option>{props.sources.map((source) => <option key={source.id} value={source.id}>{source.name}</option>)}</select></div><div className="compact-list">{props.sources.map((source) => <div key={source.id} className="compact-card"><strong>{source.name}</strong><span>{source.sourceKind} · {source.agentCount} agents · {source.categoryCount} categories · {source.runtimeCount} runtimes</span><small>{source.sourceUrl}</small><small>{source.localPath}</small></div>)}</div></section> }
 function RuntimePanel({ runtimes, selectedRuntimes, definitionByRuntime, onToggle }: { runtimes: RuntimeDetection[]; selectedRuntimes: Set<RuntimeKind>; definitionByRuntime: Map<RuntimeKind, RuntimeDefinition>; onToggle: (kind: RuntimeKind) => void }) { return <div className="panel"><div className="panel-header"><h2>Runtime Registry</h2><span>{runtimes.length} runtimes</span></div><div className="runtime-list">{runtimes.map((runtime) => { const definition = definitionByRuntime.get(runtime.kind); return <label key={runtime.kind} className={`runtime-card ${runtime.detected ? 'detected' : ''}`}><input checked={selectedRuntimes.has(runtime.kind)} onChange={() => onToggle(runtime.kind)} type="checkbox" /><div><strong>{runtime.label}</strong><span>{runtime.scope} · {runtime.detected ? 'detected' : 'not detected'}{definition?.supportsNativeRegistration ? ' · native registration' : ''}</span><small>{runtime.defaultTarget ?? runtime.configDir ?? 'manual path may be required'}</small>{runtime.notes.map((note) => <em key={note}>{note}</em>)}</div></label> })}</div></div> }
 function InstallWizard(props: { selectedAgents: Set<string>; selectedRuntimes: Set<RuntimeKind>; projectDir: string; customDir: string; hermesCategories: string; busy: boolean; setProjectDir: (v: string) => void; setCustomDir: (v: string) => void; setHermesCategories: (v: string) => void; onBuildBundles: () => void; onPlan: () => void; onInstall: () => void }) { return <div className="panel"><div className="panel-header"><h2>Install Wizard</h2><span>{props.selectedAgents.size} agents · {props.selectedRuntimes.size} runtimes</span></div><label className="field">Project directory<input value={props.projectDir} onChange={(event) => props.setProjectDir(event.target.value)} placeholder="/path/to/project" /></label><label className="field">Custom directory<input value={props.customDir} onChange={(event) => props.setCustomDir(event.target.value)} placeholder="/path/to/skills/custom" /></label><label className="field">Hermes categories<input value={props.hermesCategories} onChange={(event) => props.setHermesCategories(event.target.value)} placeholder="engineering,marketing" /></label><div className="actions"><button disabled={props.busy || props.selectedAgents.size === 0} onClick={props.onBuildBundles}>Preview Bundles</button><button disabled={props.busy || props.selectedRuntimes.size === 0} onClick={props.onPlan}>Generate Plan</button><button disabled={props.busy || props.selectedRuntimes.size === 0} onClick={props.onInstall}>Install</button></div></div> }
 function InstallPlanPanel({ plan }: { plan: InstallPlan }) { return <section className="panel plan-panel"><div className="panel-header"><h2>Install Plan</h2><span>{plan.totalAgents} agents · {plan.totalFiles} files</span></div><div className="plan-grid">{plan.targets.map((target) => <div key={target.runtime} className="plan-card"><strong>{target.runtime}</strong><span>{target.scope}</span><small>{target.filesToWrite} files · {target.agentsToInstall} agents</small>{target.targetDirs.map((dir) => <code key={dir}>{dir}</code>)}{target.postActions.map((action) => <em key={action}>post: {action}</em>)}{target.warnings.map((warning) => <em key={warning}>warning: {warning}</em>)}</div>)}</div>{plan.conflicts.length > 0 && <div className="conflicts"><h3>Overwrite conflicts backed up before install</h3>{plan.conflicts.slice(0, 12).map((conflict) => <p key={`${conflict.runtime}-${conflict.path}`}>{conflict.runtime}: {conflict.path}</p>)}</div>}</section> }
