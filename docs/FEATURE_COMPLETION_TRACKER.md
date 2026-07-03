@@ -54,6 +54,7 @@ Agent Buddy should first complete the local-first feature surface, then run vali
 | Lifecycle plans | Written | Repair, uninstall, upgrade plan stubs. |
 | Deep Link install-source | Written | `agentbuddy://install-source?url=...` can parse and execute source import. |
 | Full Agent Console menu | Written | Left navigation now covers Overview, Instances, Agents, Knowledge, Wiki, Memory, Sessions, and Settings. |
+| Refined Console layout layer | Written | Added `src/layout.css` with sticky topbar, responsive behavior, right-rail-ready layouts, table/card density, and workbench primitives. |
 | Overview Dashboard | Written | Aggregates metrics, global health score, runtime strip, sync flush plan, and recent events. |
 | Health Board | Written | Displays Agent Doctor, risks, recent tasks, sync failures, and runtime health table. |
 | Instance Console | Written | Derived instances cover runtime, agent installation, MCP, knowledge, memory, sessions, and local API. |
@@ -75,10 +76,11 @@ Agent Buddy should first complete the local-first feature surface, then run vali
 ## Next coding pass
 
 1. Split `src/ConsoleApp.tsx` into `console/`, `pages/`, and `components/` modules.
-2. Add backend aggregation commands for overview dashboards and instance lists.
-3. Add real `instances`, `instance_groups`, and `instance_tags` tables after the UI model stabilizes.
-4. Add local API daemon skeleton.
-5. Add retention cleanup plan for generated artifacts and backups.
-6. Add per-runtime Doctor details.
-7. Split central `adapters.rs` into per-runtime files after the manifest stabilizes.
-8. Only then run validation.
+2. Move Markdown / Runtime preview into a persistent inspector drawer.
+3. Add backend aggregation commands for overview dashboards and instance lists.
+4. Add real `instances`, `instance_groups`, and `instance_tags` tables after the UI model stabilizes.
+5. Add local API daemon skeleton.
+6. Add retention cleanup plan for generated artifacts and backups.
+7. Add per-runtime Doctor details.
+8. Split central `adapters.rs` into per-runtime files after the manifest stabilizes.
+9. Only then run validation.
