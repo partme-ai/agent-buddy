@@ -4,6 +4,7 @@ import type {
   AgentBundle,
   AgentBundleDiff,
   AgentInstallation,
+  AgentSourceSummary,
   ApprovalRequest,
   AuditEvent,
   BuddyStatusReport,
@@ -55,6 +56,7 @@ import type {
   SkillInstallRequest,
   SkillPackage,
   SkillTargetPath,
+  SourceImportRequest,
   SourceRefreshResult,
   SyncFlushPlan,
   SyncOutboxEvent,
@@ -70,7 +72,11 @@ export function createPaasSession(request: PaasLoginRequest): Promise<PaasSessio
 export function previewPaasSync(): Promise<PaasSyncPreview> { return invoke('preview_paas_sync') }
 export function buildSyncFlushPlan(): Promise<SyncFlushPlan> { return invoke('build_sync_flush_plan') }
 export function refreshAgentSource(): Promise<SourceRefreshResult> { return invoke('refresh_agent_source') }
+export function importAgentSource(request: SourceImportRequest): Promise<SourceRefreshResult> { return invoke('import_agent_source', { request }) }
+export function refreshAgentSourceById(sourceId: string): Promise<SourceRefreshResult> { return invoke('refresh_agent_source_by_id', { sourceId }) }
+export function listAgentSources(): Promise<AgentSourceSummary[]> { return invoke('list_agent_sources') }
 export function listAgents(): Promise<LocalAgentSummary[]> { return invoke('list_agents') }
+export function listAgentsForSource(sourceId: string): Promise<LocalAgentSummary[]> { return invoke('list_agents_for_source', { sourceId }) }
 export function buildAgentBundles(agentIds: string[]): Promise<AgentBundle[]> { return invoke('build_agent_bundles', { agentIds }) }
 export function summarizeLocalBundles(agentIds: string[]): Promise<PaasBundleSummary[]> { return invoke('summarize_local_bundles', { agentIds }) }
 export function buildBundleDiff(oldAgentId: string, newAgentId: string): Promise<AgentBundleDiff> { return invoke('build_bundle_diff', { oldAgentId, newAgentId }) }
