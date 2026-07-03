@@ -54,7 +54,9 @@ Agent Buddy should first complete the local-first feature surface, then run vali
 | Lifecycle plans | Written | Repair, uninstall, upgrade plan stubs. |
 | Deep Link install-source | Written | `agentbuddy://install-source?url=...` can parse and execute source import. |
 | Full Agent Console menu | Written | Left navigation now covers Overview, Instances, Agents, Knowledge, Wiki, Memory, Sessions, and Settings. |
+| Complete final-menu ConsoleApp | Written | Added `src/ConsoleAppComplete.tsx` and switched `src/App.tsx` to this full page matrix. |
 | Refined Console layout layer | Written | Added `src/layout.css` with sticky topbar, responsive behavior, right-rail-ready layouts, table/card density, and workbench primitives. |
+| Final menu page completion styles | Written | Added `src/complete-console.css` for page-specific density, cards, timelines, tables, settings forms, and responsive polish. |
 | Overview Dashboard | Written | Aggregates metrics, global health score, runtime strip, sync flush plan, and recent events. |
 | Health Board | Written | Displays Agent Doctor, risks, recent tasks, sync failures, and runtime health table. |
 | Instance Console | Written | Derived instances cover runtime, agent installation, MCP, knowledge, memory, sessions, and local API. |
@@ -64,6 +66,7 @@ Agent Buddy should first complete the local-first feature surface, then run vali
 | Memory Service page | Written | Memory provider state, memory list, candidates, approval, and writeback preview are wired. |
 | Session pages | Written | Overview, active sessions, session history, and Handoff creation are wired. |
 | Settings pages | Written | General, security, notification, backup restore, and enterprise/PaaS settings are wired. |
+| Page completion matrix | Written | Added `docs/FINAL_MENU_PAGE_COMPLETION_MATRIX.md` to track all final-menu pages and their major blocks. |
 | WorkBuddy UI reference | Written | Added reference doc and CSS tokens for a marketplace/workspace-style Agent Buddy UI. |
 | Settings | Written | Local settings with device ID and retention flags. |
 | Frontend install UX | Written | Agent source import, source detail, source filter, agent list, runtime selector, install wizard, records. |
@@ -75,7 +78,7 @@ Agent Buddy should first complete the local-first feature surface, then run vali
 
 ## Next coding pass
 
-1. Split `src/ConsoleApp.tsx` into `console/`, `pages/`, and `components/` modules.
+1. Split `src/ConsoleAppComplete.tsx` into `console/`, `pages/`, and `components/` modules.
 2. Move Markdown / Runtime preview into a persistent inspector drawer.
 3. Add backend aggregation commands for overview dashboards and instance lists.
 4. Add real `instances`, `instance_groups`, and `instance_tags` tables after the UI model stabilizes.
