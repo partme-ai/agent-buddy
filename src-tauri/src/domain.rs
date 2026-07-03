@@ -5,6 +5,8 @@ use std::collections::BTreeMap;
 #[serde(rename_all = "camelCase")]
 pub struct LocalAgent {
     pub id: String,
+    pub source_id: String,
+    pub source_name: String,
     pub slug: String,
     pub name: String,
     pub description: String,
@@ -26,6 +28,8 @@ impl LocalAgent {
 #[serde(rename_all = "camelCase")]
 pub struct LocalAgentSummary {
     pub id: String,
+    pub source_id: String,
+    pub source_name: String,
     pub slug: String,
     pub name: String,
     pub description: String,
@@ -37,6 +41,8 @@ impl From<&LocalAgent> for LocalAgentSummary {
     fn from(agent: &LocalAgent) -> Self {
         Self {
             id: agent.id.clone(),
+            source_id: agent.source_id.clone(),
+            source_name: agent.source_name.clone(),
             slug: agent.slug.clone(),
             name: agent.name.clone(),
             description: agent.description.clone(),
@@ -48,9 +54,43 @@ impl From<&LocalAgent> for LocalAgentSummary {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct SourceRefreshResult {
-    pub source_id: String,
+pub struct SourceImportRequest {
+    pub source_url: String,
+    pub name: Option<String>,
+    pub branch: Option<String>,
+    pub source_kind: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AgentSourceSummary {
+    pub id: String,
+    pub name: String,
+    pub source_url: String,
+    pub source_kind: String,
+    pub branch: Option<String>,
     pub local_path: String,
     pub commit_sha: Option<String>,
+    pub license: Option<String>,
+    pub agent_count: usize,
+    pub category_count: usize,
+    pub runtime_count: usize,
+    pub imported_at: i64,
+    pub updated_at: i64,
+    pub status: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SourceRefreshResult {
+    pub source_id: String,
+    pub source_name: String,
+    pub source_url: String,
+    pub source_kind: String,
+    pub local_path: String,
+    pub commit_sha: Option<String>,
+    pub agent_count: usize,
+    pub category_count: usize,
+    pub runtime_count: usize,
     pub message: String,
 }
