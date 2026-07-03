@@ -4,10 +4,14 @@ import type {
   AgentBundle,
   AgentBundleDiff,
   AgentInstallation,
+  AgentMarkdownPreview,
+  AgentRuntimeConversionPreview,
+  AgentSourceDetail,
   AgentSourceSummary,
   ApprovalRequest,
   AuditEvent,
   BuddyStatusReport,
+  BundleCatalogItem,
   BundlePullRequest,
   DeepLinkRequest,
   DeviceRegistrationRequest,
@@ -57,6 +61,7 @@ import type {
   SkillPackage,
   SkillTargetPath,
   SourceImportRequest,
+  SourceImportRiskPreview,
   SourceRefreshResult,
   SyncFlushPlan,
   SyncOutboxEvent,
@@ -73,8 +78,16 @@ export function previewPaasSync(): Promise<PaasSyncPreview> { return invoke('pre
 export function buildSyncFlushPlan(): Promise<SyncFlushPlan> { return invoke('build_sync_flush_plan') }
 export function refreshAgentSource(): Promise<SourceRefreshResult> { return invoke('refresh_agent_source') }
 export function importAgentSource(request: SourceImportRequest): Promise<SourceRefreshResult> { return invoke('import_agent_source', { request }) }
+export function importAgentSourceFromDeepLink(url: string): Promise<SourceRefreshResult> { return invoke('import_agent_source_from_deeplink', { url }) }
+export function previewSourceImportRisk(request: SourceImportRequest): Promise<SourceImportRiskPreview> { return invoke('preview_source_import_risk', { request }) }
 export function refreshAgentSourceById(sourceId: string): Promise<SourceRefreshResult> { return invoke('refresh_agent_source_by_id', { sourceId }) }
 export function listAgentSources(): Promise<AgentSourceSummary[]> { return invoke('list_agent_sources') }
+export function getAgentSourceDetail(sourceId: string): Promise<AgentSourceDetail> { return invoke('get_agent_source_detail', { sourceId }) }
+export function getAgentMarkdown(agentId: string): Promise<AgentMarkdownPreview> { return invoke('get_agent_markdown', { agentId }) }
+export function previewAgentRuntimeConversion(agentId: string, runtime: RuntimeKind): Promise<AgentRuntimeConversionPreview> { return invoke('preview_agent_runtime_conversion', { agentId, runtime }) }
+export function listBundleCatalog(): Promise<BundleCatalogItem[]> { return invoke('list_bundle_catalog') }
+export function buildLocalSourceBundle(agentId: string): Promise<AgentBundle> { return invoke('build_local_source_bundle', { agentId }) }
+export function buildSourceBundleDiff(oldAgentId: string, newAgentId: string): Promise<AgentBundleDiff> { return invoke('build_source_bundle_diff', { oldAgentId, newAgentId }) }
 export function listAgents(): Promise<LocalAgentSummary[]> { return invoke('list_agents') }
 export function listAgentsForSource(sourceId: string): Promise<LocalAgentSummary[]> { return invoke('list_agents_for_source', { sourceId }) }
 export function buildAgentBundles(agentIds: string[]): Promise<AgentBundle[]> { return invoke('build_agent_bundles', { agentIds }) }
