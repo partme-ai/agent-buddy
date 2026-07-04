@@ -49,6 +49,9 @@ Agent Buddy should first complete the local-first feature surface, then run vali
 | Sync debounce plan | Written | Flush plan, grouping, retry/debounce policy. |
 | PaaS protocol preview | Written | Connection info, device registration, bundle pull, sync preview. |
 | Local API spec | Written | Future local daemon route spec. |
+| Console backend aggregation | Written | Added `console_core.rs` and commands for overview dashboard, health board, console instances, instance groups, retention cleanup preview, and local daemon plan. |
+| Retention cleanup preview | Written | Preview command identifies old generated artifacts and backups based on local retention settings; it does not delete files yet. |
+| Local daemon plan | Written | Preview command exposes intended Local API/MCP daemon bind settings, route count, MCP count, capabilities, and warnings. |
 | Runtime status report | Written | Device/runtime/install status snapshot. |
 | Approval flow | Written | Approval request/resolve models. |
 | Lifecycle plans | Written | Repair, uninstall, upgrade plan stubs. |
@@ -72,7 +75,7 @@ Agent Buddy should first complete the local-first feature surface, then run vali
 | Frontend install UX | Written | Agent source import, source detail, source filter, agent list, runtime selector, install wizard, records. |
 | Frontend state center | Written | Console pages now distribute Settings/PaaS/Risk/MCP/Memory/Knowledge/Session panels across final menu. |
 | Per-runtime adapter split | Partial | Adapter manifest exists; central `adapters.rs` still needs physical split. |
-| Real local HTTP/MCP server | Pending | Route spec exists; daemon runtime not implemented. |
+| Real local HTTP/MCP server | Pending | Route spec exists and daemon plan exists, but the server runtime is not implemented. |
 | Platform Deep Link registration | Pending | Parser exists; OS registration not wired. |
 | Build/typecheck/Tauri validation | Deferred | Intentionally postponed until feature surface is complete. |
 
@@ -80,10 +83,9 @@ Agent Buddy should first complete the local-first feature surface, then run vali
 
 1. Split `src/ConsoleAppComplete.tsx` into `console/`, `pages/`, and `components/` modules.
 2. Move Markdown / Runtime preview into a persistent inspector drawer.
-3. Add backend aggregation commands for overview dashboards and instance lists.
-4. Add real `instances`, `instance_groups`, and `instance_tags` tables after the UI model stabilizes.
-5. Add local API daemon skeleton.
-6. Add retention cleanup plan for generated artifacts and backups.
-7. Add per-runtime Doctor details.
-8. Split central `adapters.rs` into per-runtime files after the manifest stabilizes.
-9. Only then run validation.
+3. Add real `instances`, `instance_groups`, and `instance_tags` tables after the UI model stabilizes.
+4. Add actual cleanup execution with confirmation and audit events.
+5. Implement real Local HTTP/MCP daemon runtime.
+6. Add per-runtime Doctor details.
+7. Split central `adapters.rs` into per-runtime files after the manifest stabilizes.
+8. Only then run validation.
