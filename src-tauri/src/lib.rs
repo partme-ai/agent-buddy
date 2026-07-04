@@ -4,6 +4,7 @@ mod audit;
 mod bundle;
 mod bundle_catalog;
 mod bundle_diff;
+mod console_core;
 mod database;
 mod deeplink;
 mod doctor;
@@ -88,6 +89,18 @@ fn create_paas_session(request: PaasLoginRequest, state: State<'_, AppState>) ->
 fn preview_paas_sync(state: State<'_, AppState>) -> Result<PaasSyncPreview, String> { let settings = settings::load_settings(&state.app_data_dir).map_err(to_message)?; let events = state.db.list_sync_outbox().map_err(to_message)?.into_iter().map(|event| event.event_type).collect(); Ok(paas::preview_sync(settings.paas_base_url, events)) }
 #[tauri::command]
 fn build_sync_flush_plan(state: State<'_, AppState>) -> Result<SyncFlushPlan, String> { let settings = settings::load_settings(&state.app_data_dir).map_err(to_message)?; let events = state.db.list_sync_outbox().map_err(to_message)?; Ok(sync_engine::build_flush_plan(&settings, &events)) }
+#[tauri::command]
+fn get_overview_dashboard(state: State<'_, AppState>) -> Result<console_core::ConsoleOverviewDashboard, String> { let settings = settings::load_settings(&state.app_data_dir).map_err(to_message)?; let runtimes = adapters::detect_all(); let installations = state.db.list_installations().map_err(to_message)?; let agents_count = source::list_agents(&state.app_data_dir).map_err(to_message)?.len(); let sessions = state.db.list_session_events().map_err(to_message)?; let sync_events = state.db.list_sync_outbox().map_err(to_message)?; let audits = state.db.list_audit_events().map_err(to_message)?; Ok(console_core::build_overview_dashboard(&settings, runtimes, installations, agents_count, sessions, sync_events, audits)) }
+#[tauri::command]
+fn get_health_board(state: State<'_, AppState>) -> Result<console_core::ConsoleHealthBoard, String> { let doctor = doctor::run_doctor(&state.app_data_dir); let runtimes = adapters::detect_all(); let audits = state.db.list_audit_events().map_err(to_message)?; let installs = state.db.list_install_events().map_err(to_message)?; let sync_events = state.db.list_sync_outbox().map_err(to_message)?; Ok(console_core::build_health_board(doctor, runtimes, audits, installs, sync_events)) }
+#[tauri::command]
+fn list_console_instances(state: State<'_, AppState>) -> Result<Vec<console_core::ConsoleInstance>, String> { build_console_instances_from_state(&state) }
+#[tauri::command]
+fn list_console_instance_groups(state: State<'_, AppState>) -> Result<Vec<console_core::ConsoleInstanceGroup>, String> { let instances = build_console_instances_from_state(&state)?; Ok(console_core::build_instance_groups(&instances)) }
+#[tauri::command]
+fn preview_retention_cleanup_plan(state: State<'_, AppState>) -> Result<console_core::RetentionCleanupPlan, String> { let settings = settings::load_settings(&state.app_data_dir).map_err(to_message)?; let artifacts = generated::list_generated_artifacts(&state.app_data_dir).map_err(to_message)?; let backups = state.db.list_backups().map_err(to_message)?; Ok(console_core::build_retention_cleanup_plan(&settings, artifacts, backups)) }
+#[tauri::command]
+fn preview_local_daemon_plan() -> Result<console_core::LocalDaemonPlan, String> { Ok(console_core::build_local_daemon_plan(local_api::default_local_api_spec(), mcp::default_buddy_mcp_servers())) }
 
 #[tauri::command]
 fn refresh_agent_source(state: State<'_, AppState>) -> Result<SourceRefreshResult, String> { let result = source::refresh_source(&state.app_data_dir).map_err(to_message)?; state.db.save_source_refresh(&result).map_err(to_message)?; state.db.save_audit_event(&audit_event("source.refresh", "agent_source", &result.source_id, None, AuditSeverity::Info, "refreshed default agent source")).map_err(to_message)?; Ok(result) }
@@ -235,6 +248,7 @@ fn run_doctor(state: State<'_, AppState>) -> Result<DoctorReport, String> { Ok(d
 #[tauri::command]
 fn parse_deeplink(url: String) -> Result<DeepLinkRequest, String> { deeplink::parse_deeplink(&url).map_err(to_message) }
 
+fn build_console_instances_from_state(state: &State<'_, AppState>) -> Result<Vec<console_core::ConsoleInstance>, String> { let runtimes = adapters::detect_all(); let installations = state.db.list_installations().map_err(to_message)?; let mcp_servers = mcp::default_buddy_mcp_servers(); let knowledge_spaces = state.db.list_knowledge_spaces().map_err(to_message)?; let memory_items = state.db.list_memory_items().map_err(to_message)?; let memory_candidates = state.db.list_memory_candidates().map_err(to_message)?; let session_events = state.db.list_session_events().map_err(to_message)?; Ok(console_core::build_console_instances(runtimes, installations, mcp_servers, knowledge_spaces, memory_items, memory_candidates, session_events, Some(local_api::default_local_api_spec()))) }
 fn select_agents(all_agents: Vec<domain::LocalAgent>, agent_ids: &[String]) -> Vec<domain::LocalAgent> { all_agents.into_iter().filter(|agent| agent_ids.is_empty() || agent_ids.contains(&agent.id)).collect() }
 fn to_message(error: impl std::fmt::Display) -> String { error.to_string() }
 
@@ -247,7 +261,9 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             load_settings, save_settings, get_paas_connection_status, get_paas_connection_info,
             preview_device_registration, preview_bundle_pull_request, create_paas_session,
-            preview_paas_sync, build_sync_flush_plan, refresh_agent_source, import_agent_source,
+            preview_paas_sync, build_sync_flush_plan, get_overview_dashboard, get_health_board,
+            list_console_instances, list_console_instance_groups, preview_retention_cleanup_plan,
+            preview_local_daemon_plan, refresh_agent_source, import_agent_source,
             import_agent_source_from_deeplink, preview_source_import_risk, refresh_agent_source_by_id,
             list_agent_sources, get_agent_source_detail, get_agent_markdown, preview_agent_runtime_conversion,
             list_bundle_catalog, build_local_source_bundle, build_source_bundle_diff, list_agents,
