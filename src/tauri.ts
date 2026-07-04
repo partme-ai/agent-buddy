@@ -66,6 +66,14 @@ import type {
   SyncFlushPlan,
   SyncOutboxEvent,
 } from './types'
+import type {
+  ConsoleHealthBoard,
+  ConsoleInstance,
+  ConsoleInstanceGroup,
+  ConsoleOverviewDashboard,
+  LocalDaemonPlan,
+  RetentionCleanupPlan,
+} from './consoleTypes'
 
 export function loadSettings(): Promise<AgentBuddySettings> { return invoke('load_settings') }
 export function saveSettings(settings: AgentBuddySettings): Promise<AgentBuddySettings> { return invoke('save_settings', { settings }) }
@@ -76,6 +84,12 @@ export function previewBundlePullRequest(): Promise<BundlePullRequest> { return 
 export function createPaasSession(request: PaasLoginRequest): Promise<PaasSession> { return invoke('create_paas_session', { request }) }
 export function previewPaasSync(): Promise<PaasSyncPreview> { return invoke('preview_paas_sync') }
 export function buildSyncFlushPlan(): Promise<SyncFlushPlan> { return invoke('build_sync_flush_plan') }
+export function getOverviewDashboard(): Promise<ConsoleOverviewDashboard> { return invoke('get_overview_dashboard') }
+export function getHealthBoard(): Promise<ConsoleHealthBoard> { return invoke('get_health_board') }
+export function listConsoleInstances(): Promise<ConsoleInstance[]> { return invoke('list_console_instances') }
+export function listConsoleInstanceGroups(): Promise<ConsoleInstanceGroup[]> { return invoke('list_console_instance_groups') }
+export function previewRetentionCleanupPlan(): Promise<RetentionCleanupPlan> { return invoke('preview_retention_cleanup_plan') }
+export function previewLocalDaemonPlan(): Promise<LocalDaemonPlan> { return invoke('preview_local_daemon_plan') }
 export function refreshAgentSource(): Promise<SourceRefreshResult> { return invoke('refresh_agent_source') }
 export function importAgentSource(request: SourceImportRequest): Promise<SourceRefreshResult> { return invoke('import_agent_source', { request }) }
 export function importAgentSourceFromDeepLink(url: string): Promise<SourceRefreshResult> { return invoke('import_agent_source_from_deeplink', { url }) }
