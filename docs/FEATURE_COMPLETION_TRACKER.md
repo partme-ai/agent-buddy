@@ -49,8 +49,9 @@ Agent Buddy should first complete the local-first feature surface, then run vali
 | Sync debounce plan | Written | Flush plan, grouping, retry/debounce policy. |
 | PaaS protocol preview | Written | Connection info, device registration, bundle pull, sync preview. |
 | Local API spec | Written | Future local daemon route spec. |
-| Console backend aggregation | Written | Added `console_core.rs` and commands for overview dashboard, health board, console instances, instance groups, retention cleanup preview, and local daemon plan. |
-| Retention cleanup preview | Written | Preview command identifies old generated artifacts and backups based on local retention settings; it does not delete files yet. |
+| Console backend aggregation | Written | Added `console_core.rs` and commands for overview dashboard, health board, console instances, instance groups, retention cleanup preview, cleanup execution, and local daemon plan. |
+| Retention cleanup preview | Written | Preview command identifies old generated artifacts and backups based on local retention settings. |
+| Retention cleanup execution | Written | Confirmed cleanup command deletes eligible generated artifacts/backups, returns deleted/failed lists, and writes an audit event. |
 | Local daemon plan | Written | Preview command exposes intended Local API/MCP daemon bind settings, route count, MCP count, capabilities, and warnings. |
 | Runtime status report | Written | Device/runtime/install status snapshot. |
 | Approval flow | Written | Approval request/resolve models. |
@@ -84,8 +85,7 @@ Agent Buddy should first complete the local-first feature surface, then run vali
 1. Split `src/ConsoleAppComplete.tsx` into `console/`, `pages/`, and `components/` modules.
 2. Move Markdown / Runtime preview into a persistent inspector drawer.
 3. Add real `instances`, `instance_groups`, and `instance_tags` tables after the UI model stabilizes.
-4. Add actual cleanup execution with confirmation and audit events.
-5. Implement real Local HTTP/MCP daemon runtime.
-6. Add per-runtime Doctor details.
-7. Split central `adapters.rs` into per-runtime files after the manifest stabilizes.
-8. Only then run validation.
+4. Implement real Local HTTP/MCP daemon runtime.
+5. Add per-runtime Doctor details.
+6. Split central `adapters.rs` into per-runtime files after the manifest stabilizes.
+7. Only then run validation.
