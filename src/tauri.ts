@@ -73,6 +73,7 @@ import type {
   ConsoleOverviewDashboard,
   LocalDaemonPlan,
   RetentionCleanupPlan,
+  RetentionCleanupResult,
 } from './consoleTypes'
 
 export function loadSettings(): Promise<AgentBuddySettings> { return invoke('load_settings') }
@@ -89,6 +90,7 @@ export function getHealthBoard(): Promise<ConsoleHealthBoard> { return invoke('g
 export function listConsoleInstances(): Promise<ConsoleInstance[]> { return invoke('list_console_instances') }
 export function listConsoleInstanceGroups(): Promise<ConsoleInstanceGroup[]> { return invoke('list_console_instance_groups') }
 export function previewRetentionCleanupPlan(): Promise<RetentionCleanupPlan> { return invoke('preview_retention_cleanup_plan') }
+export function executeRetentionCleanup(confirm: boolean): Promise<RetentionCleanupResult> { return invoke('execute_retention_cleanup', { confirm }) }
 export function previewLocalDaemonPlan(): Promise<LocalDaemonPlan> { return invoke('preview_local_daemon_plan') }
 export function refreshAgentSource(): Promise<SourceRefreshResult> { return invoke('refresh_agent_source') }
 export function importAgentSource(request: SourceImportRequest): Promise<SourceRefreshResult> { return invoke('import_agent_source', { request }) }
