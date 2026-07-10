@@ -62,7 +62,7 @@ pub fn instance_snapshot(instance: ConsoleInstance, persisted: Option<InstanceRe
     }
     sections.push(InspectorSection { id: "events".to_string(), title: "Recent Events".to_string(), rows: events.into_iter().take(20).map(|event| row(&event.level, &event.message)).collect(), code: None });
     sections.push(InspectorSection { id: "audit".to_string(), title: "Audit".to_string(), rows: audits.into_iter().take(20).map(|event| row(&event.action, &event.message)).collect(), code: None });
-    sections.push(InspectorSection { id: "sessions".to_string(), title: "Session Context".to_string(), rows: sessions.into_iter().take(20).map(|event| row(&event.event_type.to_string(), &event.session_id)).collect(), code: None });
+    sections.push(InspectorSection { id: "sessions".to_string(), title: "Session Context".to_string(), rows: sessions.into_iter().take(20).map(|event| row(&format!("{:?}", event.event_type), &event.session_id)).collect(), code: None });
     InspectorSnapshot { subject_id: instance.id.clone(), subject_type: instance.instance_type, title: instance.name, summary: instance.description, sections, actions: default_actions(), warnings: Vec::new() }
 }
 
