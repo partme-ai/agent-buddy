@@ -14,6 +14,11 @@ Agent Buddy should first complete the local-first feature surface, then run vali
 | SQLite local state | Written | Sources, detections, installs, backups, events, audit, sync, memory, knowledge, session. |
 | 18 Runtime registry | Written | Covers the full `agency-agents-zh` target list. |
 | 18 Runtime adapter manifest | Written | Detect methods, install targets, generated formats, integration methods and support levels are declared. |
+| 18 per-runtime adapter files | Written | Added physical files under `src-tauri/src/runtime_adapters/`; central migration still pending. |
+| Instance persistence domain | Written | Added `instance.rs` with instance/group/upsert models and summaries. |
+| Inspector domain | Written | Added inspector snapshot models for instances, installations, and generated artifacts. |
+| Per-runtime Doctor reports | Written | Added runtime-level doctor score, checks, and remediation actions. |
+| Local daemon status model | Written | Added daemon status and start/stop preview model; real listener still pending. |
 | Agent Source import | Written | Users can import Git/GitHub/local agent sources, including `agency-agents-zh`, into local Buddy management. |
 | Source-scoped agent management | Written | Agents carry `sourceId/sourceName`; UI supports source filter before runtime installation. |
 | Source Detail | Written | Source detail includes agents, categories, risk report, license/notice preview, and warnings. |
@@ -75,17 +80,17 @@ Agent Buddy should first complete the local-first feature surface, then run vali
 | Settings | Written | Local settings with device ID and retention flags. |
 | Frontend install UX | Written | Agent source import, source detail, source filter, agent list, runtime selector, install wizard, records. |
 | Frontend state center | Written | Console pages now distribute Settings/PaaS/Risk/MCP/Memory/Knowledge/Session panels across final menu. |
-| Per-runtime adapter split | Partial | Adapter manifest exists; central `adapters.rs` still needs physical split. |
-| Real local HTTP/MCP server | Pending | Route spec exists and daemon plan exists, but the server runtime is not implemented. |
+| Central adapter migration | Pending | The per-runtime files exist, but `adapters.rs` still owns active detection/conversion/path logic. |
+| Real local HTTP/MCP server | Pending | Route spec and daemon status model exist, but the server runtime is not implemented. |
 | Platform Deep Link registration | Pending | Parser exists; OS registration not wired. |
 | Build/typecheck/Tauri validation | Deferred | Intentionally postponed until feature surface is complete. |
 
 ## Next coding pass
 
-1. Split `src/ConsoleAppComplete.tsx` into `console/`, `pages/`, and `components/` modules.
-2. Move Markdown / Runtime preview into a persistent inspector drawer.
-3. Add real `instances`, `instance_groups`, and `instance_tags` tables after the UI model stabilizes.
-4. Implement real Local HTTP/MCP daemon runtime.
-5. Add per-runtime Doctor details.
-6. Split central `adapters.rs` into per-runtime files after the manifest stabilizes.
+1. Wire `instance.rs`, `inspector.rs`, `runtime_doctor.rs`, and `local_daemon.rs` into Tauri commands.
+2. Add SQLite persistence for `instances`, `instance_groups`, and tags.
+3. Move Markdown / Runtime preview into a persistent inspector drawer.
+4. Replace frontend-derived instance lists with backend `ConsoleInstance` plus persisted instance overlays.
+5. Implement real Local HTTP/MCP daemon runtime.
+6. Migrate active logic from central `adapters.rs` into `runtime_adapters/*` files.
 7. Only then run validation.
