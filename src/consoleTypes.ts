@@ -103,11 +103,31 @@ export interface CleanupCandidate {
   createdOrModifiedAt?: number | null
 }
 
+export interface CleanupDeletion {
+  id: string
+  path: string
+  sizeBytes: number
+}
+
+export interface CleanupFailure {
+  id: string
+  path: string
+  message: string
+}
+
 export interface RetentionCleanupPlan {
   generatedAt: number
   generatedCandidates: CleanupCandidate[]
   backupCandidates: CleanupCandidate[]
   totalBytes: number
+  warnings: string[]
+}
+
+export interface RetentionCleanupResult {
+  generatedAt: number
+  deleted: CleanupDeletion[]
+  failed: CleanupFailure[]
+  totalDeletedBytes: number
   warnings: string[]
 }
 
