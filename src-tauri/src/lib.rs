@@ -98,7 +98,9 @@ fn list_console_instances(state: State<'_, AppState>) -> Result<Vec<console_core
 #[tauri::command]
 fn list_console_instance_groups(state: State<'_, AppState>) -> Result<Vec<console_core::ConsoleInstanceGroup>, String> { let instances = build_console_instances_from_state(&state)?; Ok(console_core::build_instance_groups(&instances)) }
 #[tauri::command]
-fn preview_retention_cleanup_plan(state: State<'_, AppState>) -> Result<console_core::RetentionCleanupPlan, String> { let settings = settings::load_settings(&state.app_data_dir).map_err(to_message)?; let artifacts = generated::list_generated_artifacts(&state.app_data_dir).map_err(to_message)?; let backups = state.db.list_backups().map_err(to_message)?; Ok(console_core::build_retention_cleanup_plan(&settings, artifacts, backups)) }
+fn preview_retention_cleanup_plan(state: State<'_, AppState>) -> Result<console_core::RetentionCleanupPlan, String> { build_retention_plan_from_state(&state) }
+#[tauri::command]
+fn execute_retention_cleanup(confirm: bool, state: State<'_, AppState>) -> Result<console_core::RetentionCleanupResult, String> { if !confirm { return Err("retention cleanup requires confirm=true".to_string()); } let plan = build_retention_plan_from_state(&state)?; let result = console_core::execute_retention_cleanup(&plan); let message = format!("retention cleanup deleted {} item(s), failed {} item(s), bytes {}", result.deleted.len(), result.failed.len(), result.total_deleted_bytes); state.db.save_audit_event(&audit_event("retention.cleanup.execute", "retention_cleanup", "local", None, AuditSeverity::Warn, message)).map_err(to_message)?; Ok(result) }
 #[tauri::command]
 fn preview_local_daemon_plan() -> Result<console_core::LocalDaemonPlan, String> { Ok(console_core::build_local_daemon_plan(local_api::default_local_api_spec(), mcp::default_buddy_mcp_servers())) }
 
@@ -249,6 +251,7 @@ fn run_doctor(state: State<'_, AppState>) -> Result<DoctorReport, String> { Ok(d
 fn parse_deeplink(url: String) -> Result<DeepLinkRequest, String> { deeplink::parse_deeplink(&url).map_err(to_message) }
 
 fn build_console_instances_from_state(state: &State<'_, AppState>) -> Result<Vec<console_core::ConsoleInstance>, String> { let runtimes = adapters::detect_all(); let installations = state.db.list_installations().map_err(to_message)?; let mcp_servers = mcp::default_buddy_mcp_servers(); let knowledge_spaces = state.db.list_knowledge_spaces().map_err(to_message)?; let memory_items = state.db.list_memory_items().map_err(to_message)?; let memory_candidates = state.db.list_memory_candidates().map_err(to_message)?; let session_events = state.db.list_session_events().map_err(to_message)?; Ok(console_core::build_console_instances(runtimes, installations, mcp_servers, knowledge_spaces, memory_items, memory_candidates, session_events, Some(local_api::default_local_api_spec()))) }
+fn build_retention_plan_from_state(state: &State<'_, AppState>) -> Result<console_core::RetentionCleanupPlan, String> { let settings = settings::load_settings(&state.app_data_dir).map_err(to_message)?; let artifacts = generated::list_generated_artifacts(&state.app_data_dir).map_err(to_message)?; let backups = state.db.list_backups().map_err(to_message)?; Ok(console_core::build_retention_cleanup_plan(&settings, artifacts, backups)) }
 fn select_agents(all_agents: Vec<domain::LocalAgent>, agent_ids: &[String]) -> Vec<domain::LocalAgent> { all_agents.into_iter().filter(|agent| agent_ids.is_empty() || agent_ids.contains(&agent.id)).collect() }
 fn to_message(error: impl std::fmt::Display) -> String { error.to_string() }
 
@@ -263,7 +266,7 @@ pub fn run() {
             preview_device_registration, preview_bundle_pull_request, create_paas_session,
             preview_paas_sync, build_sync_flush_plan, get_overview_dashboard, get_health_board,
             list_console_instances, list_console_instance_groups, preview_retention_cleanup_plan,
-            preview_local_daemon_plan, refresh_agent_source, import_agent_source,
+            execute_retention_cleanup, preview_local_daemon_plan, refresh_agent_source, import_agent_source,
             import_agent_source_from_deeplink, preview_source_import_risk, refresh_agent_source_by_id,
             list_agent_sources, get_agent_source_detail, get_agent_markdown, preview_agent_runtime_conversion,
             list_bundle_catalog, build_local_source_bundle, build_source_bundle_diff, list_agents,
