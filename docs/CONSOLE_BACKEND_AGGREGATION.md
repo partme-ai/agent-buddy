@@ -29,6 +29,9 @@ ConsoleInstance
 ConsoleInstanceGroup
 RetentionCleanupPlan
 CleanupCandidate
+RetentionCleanupResult
+CleanupDeletion
+CleanupFailure
 LocalDaemonPlan
 ```
 
@@ -40,6 +43,7 @@ get_health_board
 list_console_instances
 list_console_instance_groups
 preview_retention_cleanup_plan
+execute_retention_cleanup
 preview_local_daemon_plan
 ```
 
@@ -58,6 +62,7 @@ getHealthBoard()
 listConsoleInstances()
 listConsoleInstanceGroups()
 previewRetentionCleanupPlan()
+executeRetentionCleanup(confirm)
 previewLocalDaemonPlan()
 ```
 
@@ -124,11 +129,32 @@ sync failures
 warnings
 ```
 
-## Retention cleanup plan
+## Retention cleanup
 
 `preview_retention_cleanup_plan` uses local settings to identify old generated artifacts and old backups.
 
-It is preview-only in this pass. It does not delete files.
+`execute_retention_cleanup` performs the cleanup only when called with `confirm=true`.
+
+Execution behavior:
+
+```text
+1. Rebuild the cleanup plan from current local settings and state.
+2. Delete generated artifact candidates and backup candidates.
+3. Return deleted items and failed items.
+4. Write a warning-level audit event summarizing the cleanup.
+```
+
+It returns:
+
+```text
+RetentionCleanupResult
+  - deleted
+  - failed
+  - totalDeletedBytes
+  - warnings
+```
+
+The command intentionally rebuilds the plan at execution time rather than trusting stale frontend state.
 
 ## Local daemon plan
 
@@ -149,7 +175,7 @@ The daemon is still a plan, not a running server.
 ## Next backend work
 
 1. Add persistent `instances`, `instance_groups`, and `instance_tags` tables.
-2. Add actual cleanup execution with confirmation and audit events.
-3. Add real Local HTTP/MCP daemon runtime.
-4. Add per-runtime Doctor details.
-5. Add backend APIs for page-level skeleton/error states.
+2. Add real Local HTTP/MCP daemon runtime.
+3. Add per-runtime Doctor details.
+4. Add backend APIs for page-level skeleton/error states.
+5. Split `ConsoleAppComplete.tsx` into page modules.
