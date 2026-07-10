@@ -12,6 +12,8 @@ use crate::sync::{status_to_str, SyncOutboxEvent, SyncStatus};
 use crate::sync_engine::{self, SyncFlushPlan};
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, BTreeSet};
+use std::fs;
+use std::path::Path;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -49,6 +51,15 @@ pub struct RetentionCleanupPlan { pub generated_at: i64, pub generated_candidate
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CleanupCandidate { pub id: String, pub path: String, pub reason: String, pub size_bytes: u64, pub created_or_modified_at: Option<i64> }
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RetentionCleanupResult { pub generated_at: i64, pub deleted: Vec<CleanupDeletion>, pub failed: Vec<CleanupFailure>, pub total_deleted_bytes: u64, pub warnings: Vec<String> }
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CleanupDeletion { pub id: String, pub path: String, pub size_bytes: u64 }
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CleanupFailure { pub id: String, pub path: String, pub message: String }
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct LocalDaemonPlan { pub enabled: bool, pub bind_host: String, pub bind_port: u16, pub base_url: String, pub route_count: usize, pub mcp_server_count: usize, pub capabilities: Vec<String>, pub warnings: Vec<String> }
@@ -112,8 +123,29 @@ pub fn build_retention_cleanup_plan(settings: &AgentBuddySettings, artifacts: Ve
     RetentionCleanupPlan { generated_at: now, generated_candidates, backup_candidates, total_bytes, warnings }
 }
 
+pub fn execute_retention_cleanup(plan: &RetentionCleanupPlan) -> RetentionCleanupResult {
+    let mut deleted = Vec::new();
+    let mut failed = Vec::new();
+    for candidate in plan.generated_candidates.iter().chain(plan.backup_candidates.iter()) {
+        match delete_path(&candidate.path) {
+            Ok(()) => deleted.push(CleanupDeletion { id: candidate.id.clone(), path: candidate.path.clone(), size_bytes: candidate.size_bytes }),
+            Err(error) => failed.push(CleanupFailure { id: candidate.id.clone(), path: candidate.path.clone(), message: error.to_string() }),
+        }
+    }
+    let total_deleted_bytes = deleted.iter().map(|item| item.size_bytes).sum();
+    let mut warnings = plan.warnings.clone();
+    if !failed.is_empty() { warnings.push(format!("{} cleanup candidate(s) failed to delete.", failed.len())); }
+    RetentionCleanupResult { generated_at: chrono::Utc::now().timestamp(), deleted, failed, total_deleted_bytes, warnings }
+}
+
 pub fn build_local_daemon_plan(api: LocalApiSpec, mcp_servers: Vec<McpServerConfig>) -> LocalDaemonPlan { let enabled_mcp = mcp_servers.iter().filter(|server| server.enabled).count(); let warnings = vec!["Local daemon is currently a preview plan; route spec exists but the HTTP/MCP server is not started yet.".to_string()]; LocalDaemonPlan { enabled: false, bind_host: api.bind_host, bind_port: api.bind_port, base_url: api.base_url, route_count: api.routes.len(), mcp_server_count: enabled_mcp, capabilities: vec!["memory".to_string(), "knowledge".to_string(), "session".to_string(), "approval".to_string(), "mcp-proxy".to_string()], warnings } }
 
+fn delete_path(path: &str) -> anyhow::Result<()> {
+    let path = Path::new(path);
+    if !path.exists() { return Ok(()); }
+    if path.is_dir() { fs::remove_dir_all(path)?; } else { fs::remove_file(path)?; }
+    Ok(())
+}
 fn runtime_summary(runtimes: &[RuntimeDetection]) -> ConsoleRuntimeSummary { let mut by_scope = BTreeMap::new(); for runtime in runtimes { *by_scope.entry(format!("{:?}", runtime.scope)).or_insert(0) += 1; } ConsoleRuntimeSummary { total: runtimes.len(), detected: runtimes.iter().filter(|runtime| runtime.detected).count(), not_detected: runtimes.iter().filter(|runtime| !runtime.detected).count(), by_scope } }
 fn sync_summary(events: Vec<SyncOutboxEvent>, flush_plan: SyncFlushPlan) -> ConsoleSyncSummary { ConsoleSyncSummary { pending: events.iter().filter(|event| matches!(event.status, SyncStatus::Pending)).count(), failed: events.iter().filter(|event| matches!(event.status, SyncStatus::Failed)).count(), sent: events.iter().filter(|event| matches!(event.status, SyncStatus::Sent)).count(), skipped: events.iter().filter(|event| matches!(event.status, SyncStatus::Skipped)).count(), flush_plan } }
 fn health_score(detected: usize, total: usize, risk_count: i64, failed_sync: i64) -> i64 { if total == 0 { return 0; } let base = ((detected as f64 / total as f64) * 100.0).round() as i64; (base - risk_count * 2 - failed_sync * 3).clamp(0, 100) }
