@@ -21,7 +21,7 @@ export type RuntimeKind =
 export type InstallScope = 'global' | 'project' | 'custom'
 export type InstallMode = 'copy' | 'symlink' | 'auto'
 export type DoctorStatus = 'ok' | 'warning' | 'error'
-export type DeepLinkAction = 'install-source' | 'install-agent' | 'install-bundle' | 'install-skill' | 'install-mcp' | 'handoff' | 'unknown'
+export type DeepLinkAction = 'install-source' | 'install-agent' | 'install-bundle' | 'install-skill' | 'install-mcp' | 'handoff' | 'register-protocol' | 'unknown'
 export type McpTransport = 'stdio' | 'http' | 'sse'
 export type SkillSyncMode = 'auto' | 'symlink' | 'copy'
 export type AuditSeverity = 'info' | 'warn' | 'error' | 'security'
@@ -126,25 +126,19 @@ export interface AuditEvent { id: string; actor: string; action: string; resourc
 export interface SyncOutboxEvent { id: string; aggregateType: string; aggregateId: string; eventType: string; payloadJson: string; status: SyncStatus; retryCount: number; createdAt: number; updatedAt: number }
 export interface SyncDebouncePolicy { debounceMs: number; maxBatchSize: number; maxRetryCount: number; flushOnShutdown: boolean }
 export interface SyncFlushPlan { enabled: boolean; destination: string; pendingCount: number; groupedCounts: Record<string, number>; debouncePolicy: SyncDebouncePolicy; warnings: string[] }
-export interface RiskFinding { severity: RiskSeverity; ruleId: string; message: string; matched: string }
-export interface RiskScanReport { totalFindings: number; findings: RiskFinding[] }
-
-export interface MemoryItem { id: string; scope: MemoryScope; memoryType: MemoryType; title: string; content: string; source: string; status: MemoryStatus; createdAt: number; updatedAt: number }
-export interface MemoryCandidate { id: string; scope: MemoryScope; memoryType: MemoryType; content: string; sourceSessionId?: string | null; confidence: number; status: MemoryStatus; createdAt: number }
-export interface MemoryConflict { id: string; localMemoryId?: string | null; remoteMemoryId?: string | null; conflictType: string; summary: string; recommendedResolution: string }
-export interface MemoryInitPlan { source: string; scopes: MemoryScope[]; targetProvider: string; itemsToPull: number; localWritePolicy: string; conflictPolicy: string; warnings: string[] }
-export interface MemoryWritebackPlan { destination: string; candidates: MemoryCandidate[]; activeItems: MemoryItem[]; conflicts: MemoryConflict[]; policy: string; warnings: string[] }
+export interface RiskFinding { severity: RiskSeverity; code: string; message: string; line?: number | null }
+export interface RiskScanReport { severity: RiskSeverity; findings: RiskFinding[]; safeToWrite: boolean }
 
 export interface KnowledgeSpace { id: string; name: string; description: string; source: string; syncMode: string; documentCount: number; createdAt: number; updatedAt: number }
 export interface KnowledgeSnapshot { id: string; spaceId: string; version: string; manifestPath: string; status: string; createdAt: number }
-export interface KnowledgePackage { id: string; packageType: KnowledgePackageType; name: string; description: string; source: string; version: string; manifestPath?: string | null; documentCount: number; chunkCount: number }
-export interface KnowledgeMirrorFile { relativePath: string; purpose: string; contentPreview: string }
-export interface KnowledgeIndexPlan { chunkStrategy: string; vectorIndex: string; keywordIndex: string; aclMode: string; contextPackEnabled: boolean }
-export interface KnowledgeMirrorPlan { package: KnowledgePackage; localRoot: string; files: KnowledgeMirrorFile[]; indexPlan: KnowledgeIndexPlan; warnings: string[] }
-export interface KnowledgeSnippet { sourceId: string; title: string; content: string; score: number }
-export interface KnowledgeContextPack { id: string; query: string; spaceIds: string[]; snippets: KnowledgeSnippet[]; createdAt: number }
+export interface KnowledgeMirrorStep { id: string; title: string; description: string; status: string; outputPath?: string | null }
+export interface KnowledgeMirrorPlan { spaceId: string; planType: KnowledgePackageType; targetRoot: string; steps: KnowledgeMirrorStep[]; warnings: string[] }
+export interface KnowledgeContextPack { query: string; selectedSpaces: string[]; snippets: string[]; warnings: string[] }
+
+export interface MemoryItem { id: string; scope: MemoryScope; memoryType: MemoryType; title: string; content: string; source: string; status: MemoryStatus; createdAt: number; updatedAt: number }
+export interface MemoryCandidate { id: string; scope: MemoryScope; memoryType: MemoryType; content: string; sourceSessionId?: string | null; confidence: number; status: MemoryStatus; createdAt: number }
+export interface MemoryInitPlan { scopes: MemoryScope[]; steps: string[]; warnings: string[] }
+export interface MemoryWritebackPlan { candidates: MemoryCandidate[]; activeItems: MemoryItem[]; warnings: string[] }
 
 export interface SessionEvent { id: string; sessionId: string; runtime?: RuntimeKind | null; eventType: SessionEventType; payloadJson: string; createdAt: number }
 export interface HandoffPack { id: string; fromRuntime?: RuntimeKind | null; toRuntime?: RuntimeKind | null; sessionId: string; goal: string; summary: string; knowledgeRefs: string[]; memoryRefs: string[]; openTasks: string[]; createdAt: number }
-export interface SessionScanSource { runtime: RuntimeKind; label: string; defaultPaths: string[]; detectedPaths: string[]; parser: string; supportsResume: boolean; supportLevel?: string }
-export interface SessionSyncPlan { sources: SessionScanSource[]; eventNormalizer: string; summaryStrategy: string; handoffEnabled: boolean; paasSyncEnabled: boolean; warnings: string[] }
