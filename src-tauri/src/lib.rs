@@ -26,6 +26,7 @@ mod memory_sync;
 mod paas;
 mod risk;
 mod runtime;
+mod runtime_adapters;
 mod runtime_config;
 mod runtime_status;
 mod session;
@@ -295,9 +296,8 @@ pub fn run() {
             list_console_instances, list_console_instance_groups, preview_retention_cleanup_plan,
             execute_retention_cleanup, preview_local_daemon_plan, start_local_daemon, stop_local_daemon,
             get_local_daemon_status, upsert_instance, list_persisted_instances, delete_persisted_instance,
-            set_instance_tags, assign_instance_group, upsert_instance_group,
-            list_persisted_instance_groups, list_persisted_instance_group_summaries,
-            delete_persisted_instance_group, refresh_agent_source, import_agent_source,
+            set_instance_tags, assign_instance_group, upsert_instance_group, list_persisted_instance_groups,
+            list_persisted_instance_group_summaries, delete_persisted_instance_group, refresh_agent_source, import_agent_source,
             import_agent_source_from_deeplink, preview_source_import_risk, refresh_agent_source_by_id,
             list_agent_sources, get_agent_source_detail, get_agent_markdown, preview_agent_runtime_conversion,
             list_bundle_catalog, build_local_source_bundle, build_source_bundle_diff, list_agents,
