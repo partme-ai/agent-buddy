@@ -16,6 +16,7 @@ mod knowledge;
 mod knowledge_package;
 mod lifecycle;
 mod local_api;
+mod local_daemon;
 mod marketplace;
 mod mcp;
 mod mcp_config;
@@ -69,7 +70,7 @@ use sync::{outbox_event, SyncOutboxEvent};
 use sync_engine::SyncFlushPlan;
 use tauri::{Manager, State};
 
-struct AppState { db: Arc<Database>, app_data_dir: PathBuf }
+struct AppState { db: Arc<Database>, app_data_dir: PathBuf, daemon: Arc<local_daemon::LocalDaemonControl> }
 
 #[tauri::command]
 fn load_settings(state: State<'_, AppState>) -> Result<AgentBuddySettings, String> { settings::load_settings(&state.app_data_dir).map_err(to_message) }
@@ -103,6 +104,12 @@ fn preview_retention_cleanup_plan(state: State<'_, AppState>) -> Result<console_
 fn execute_retention_cleanup(confirm: bool, state: State<'_, AppState>) -> Result<console_core::RetentionCleanupResult, String> { if !confirm { return Err("retention cleanup requires confirm=true".to_string()); } let plan = build_retention_plan_from_state(&state)?; let result = console_core::execute_retention_cleanup(&plan); let message = format!("retention cleanup deleted {} item(s), failed {} item(s), bytes {}", result.deleted.len(), result.failed.len(), result.total_deleted_bytes); state.db.save_audit_event(&audit_event("retention.cleanup.execute", "retention_cleanup", "local", None, AuditSeverity::Warn, message)).map_err(to_message)?; Ok(result) }
 #[tauri::command]
 fn preview_local_daemon_plan() -> Result<console_core::LocalDaemonPlan, String> { Ok(console_core::build_local_daemon_plan(local_api::default_local_api_spec(), mcp::default_buddy_mcp_servers())) }
+#[tauri::command]
+fn start_local_daemon(state: State<'_, AppState>) -> Result<local_daemon::LocalDaemonStartResult, String> { let result = state.daemon.start(local_api::default_local_api_spec(), mcp::default_buddy_mcp_servers()).map_err(to_message)?; state.db.save_audit_event(&audit_event("local_daemon.start", "local_daemon", "agent-buddy", None, AuditSeverity::Info, result.message.clone())).map_err(to_message)?; Ok(result) }
+#[tauri::command]
+fn stop_local_daemon(state: State<'_, AppState>) -> Result<local_daemon::LocalDaemonStopResult, String> { let result = state.daemon.stop(); state.db.save_audit_event(&audit_event("local_daemon.stop", "local_daemon", "agent-buddy", None, AuditSeverity::Warn, result.message.clone())).map_err(to_message)?; Ok(result) }
+#[tauri::command]
+fn get_local_daemon_status(state: State<'_, AppState>) -> Result<local_daemon::LocalDaemonStatus, String> { Ok(state.daemon.status()) }
 
 #[tauri::command]
 fn refresh_agent_source(state: State<'_, AppState>) -> Result<SourceRefreshResult, String> { let result = source::refresh_source(&state.app_data_dir).map_err(to_message)?; state.db.save_source_refresh(&result).map_err(to_message)?; state.db.save_audit_event(&audit_event("source.refresh", "agent_source", &result.source_id, None, AuditSeverity::Info, "refreshed default agent source")).map_err(to_message)?; Ok(result) }
@@ -128,7 +135,6 @@ fn list_bundle_catalog(state: State<'_, AppState>) -> Result<Vec<BundleCatalogIt
 fn build_local_source_bundle(agent_id: String, state: State<'_, AppState>) -> Result<AgentBundle, String> { source_inspector::build_local_bundle(&state.app_data_dir, &agent_id).map_err(to_message) }
 #[tauri::command]
 fn build_source_bundle_diff(old_agent_id: String, new_agent_id: String, state: State<'_, AppState>) -> Result<AgentBundleDiff, String> { source_inspector::source_bundle_diff(&state.app_data_dir, &old_agent_id, &new_agent_id).map_err(to_message) }
-
 #[tauri::command]
 fn list_agents(state: State<'_, AppState>) -> Result<Vec<LocalAgentSummary>, String> { let agents = source::list_agents(&state.app_data_dir).map_err(to_message)?; Ok(agents.iter().map(LocalAgentSummary::from).collect()) }
 #[tauri::command]
@@ -139,7 +145,6 @@ fn build_agent_bundles(agent_ids: Vec<String>, state: State<'_, AppState>) -> Re
 fn summarize_local_bundles(agent_ids: Vec<String>, state: State<'_, AppState>) -> Result<Vec<PaasBundleSummary>, String> { Ok(build_agent_bundles(agent_ids, state)?.iter().map(paas::summarize_bundle).collect()) }
 #[tauri::command]
 fn build_bundle_diff(old_agent_id: String, new_agent_id: String, state: State<'_, AppState>) -> Result<AgentBundleDiff, String> { build_source_bundle_diff(old_agent_id, new_agent_id, state) }
-
 #[tauri::command]
 fn detect_runtimes(state: State<'_, AppState>) -> Result<Vec<RuntimeDetection>, String> { let detections = adapters::detect_all(); for detection in &detections { state.db.save_runtime_detection(detection).map_err(to_message)?; } Ok(detections) }
 #[tauri::command]
@@ -156,14 +161,12 @@ fn build_instruction_injection_plan(agent_id: String, runtime: RuntimeKind, proj
 fn build_mcp_config_plan(runtime: RuntimeKind, project_dir: Option<String>) -> Result<McpConfigPlan, String> { let servers = mcp::default_buddy_mcp_servers(); Ok(mcp_config::build_mcp_config_plan(runtime, &servers, project_dir.as_deref())) }
 #[tauri::command]
 fn build_runtime_mcp_config_preview(runtime: RuntimeKind) -> Result<RuntimeConfigPreview, String> { let servers = mcp::default_buddy_mcp_servers(); Ok(runtime_config::mcp_config_preview(runtime, &servers)) }
-
 #[tauri::command]
 fn list_marketplace_sources() -> Result<Vec<MarketplaceSource>, String> { Ok(marketplace::default_marketplace_sources()) }
 #[tauri::command]
 fn build_skill_install_plan(request: SkillInstallRequest, state: State<'_, AppState>) -> Result<SkillInstallPlan, String> { Ok(marketplace::build_skill_install_plan(request, &state.app_data_dir)) }
 #[tauri::command]
 fn build_marketplace_mcp_install_plan(request: McpInstallRequest) -> Result<McpInstallPlan, String> { Ok(marketplace::build_mcp_install_plan(request)) }
-
 #[tauri::command]
 fn install_agents(agent_ids: Vec<String>, targets: Vec<InstallTarget>, state: State<'_, AppState>) -> Result<Vec<InstallResult>, String> { let all_agents = source::list_agents(&state.app_data_dir).map_err(to_message)?; let selected = select_agents(all_agents, &agent_ids); let mut results = Vec::new(); for target in targets { let outcome = installer::install_target(&selected, &target, &state.app_data_dir).map_err(to_message)?; for record in &outcome.records { state.db.save_installation(record).map_err(to_message)?; let payload = serde_json::to_string(record).map_err(to_message)?; state.db.save_sync_outbox_event(&outbox_event("agent_installation", &record.id, "agent.installation.created", payload)).map_err(to_message)?; state.db.save_audit_event(&audit_event("agent.install", "agent_installation", &record.id, Some(record.runtime), AuditSeverity::Info, "installed agent bundle into runtime")).map_err(to_message)?; } for backup in &outcome.backups { state.db.save_backup(backup).map_err(to_message)?; } for event in &outcome.events { state.db.save_install_event(event).map_err(to_message)?; } results.push(outcome.result); } Ok(results) }
 #[tauri::command]
@@ -190,7 +193,6 @@ fn list_default_mcp_servers() -> Result<Vec<mcp::McpServerConfig>, String> { Ok(
 fn list_skill_targets() -> Result<Vec<skill::SkillTargetPath>, String> { Ok(skill::default_skill_targets()) }
 #[tauri::command]
 fn list_built_in_skills() -> Result<Vec<skill::SkillPackage>, String> { Ok(skill::built_in_buddy_skills()) }
-
 #[tauri::command]
 fn create_approval_request(runtime: Option<RuntimeKind>, action: String, resource_type: String, resource_id: String, reason: String, risk_level: String, state: State<'_, AppState>) -> Result<ApprovalRequest, String> { let risk = match risk_level.as_str() { "medium" => ApprovalRiskLevel::Medium, "high" => ApprovalRiskLevel::High, "critical" => ApprovalRiskLevel::Critical, _ => ApprovalRiskLevel::Low }; let request = approval::new_approval_request(runtime, action, resource_type, resource_id, reason, risk); state.db.save_audit_event(&audit_event("approval.request", "approval_request", &request.id, runtime, AuditSeverity::Security, "created approval request")).map_err(to_message)?; Ok(request) }
 #[tauri::command]
@@ -201,7 +203,6 @@ fn repair_installation_plan(installation_id: String, state: State<'_, AppState>)
 fn uninstall_installation_plan(installation_id: String, state: State<'_, AppState>) -> Result<LifecyclePlan, String> { let installation = state.db.get_installation(&installation_id).map_err(to_message)?.ok_or_else(|| format!("installation not found: {installation_id}"))?; Ok(lifecycle::uninstall_plan(&installation)) }
 #[tauri::command]
 fn upgrade_installation_plan(runtime: RuntimeKind, installation_id: Option<String>) -> Result<LifecyclePlan, String> { Ok(lifecycle::upgrade_plan(runtime, installation_id)) }
-
 #[tauri::command]
 fn initialize_default_knowledge_spaces(state: State<'_, AppState>) -> Result<Vec<KnowledgeSpace>, String> { let spaces = knowledge::default_local_spaces(); for space in &spaces { state.db.save_knowledge_space(space).map_err(to_message)?; } Ok(spaces) }
 #[tauri::command]
@@ -216,7 +217,6 @@ fn build_wiki_mirror_plan(space_id: String, state: State<'_, AppState>) -> Resul
 fn build_rag_mirror_plan(space_id: String, state: State<'_, AppState>) -> Result<KnowledgeMirrorPlan, String> { Ok(knowledge_package::build_rag_mirror_plan(space_id, &state.app_data_dir)) }
 #[tauri::command]
 fn build_knowledge_context_pack(query: String, space_ids: Vec<String>) -> Result<KnowledgeContextPack, String> { Ok(knowledge_package::build_context_pack(query, space_ids)) }
-
 #[tauri::command]
 fn list_memory_items(state: State<'_, AppState>) -> Result<Vec<MemoryItem>, String> { state.db.list_memory_items().map_err(to_message) }
 #[tauri::command]
@@ -229,7 +229,6 @@ fn approve_memory_candidate(candidate_id: String, title: String, state: State<'_
 fn build_memory_init_plan(scopes: Vec<String>) -> Result<MemoryInitPlan, String> { Ok(memory_sync::build_init_plan(scopes.iter().map(|scope| memory::parse_scope(scope)).collect())) }
 #[tauri::command]
 fn build_memory_writeback_plan(state: State<'_, AppState>) -> Result<MemoryWritebackPlan, String> { let candidates = state.db.list_memory_candidates().map_err(to_message)?; let items = state.db.list_memory_items().map_err(to_message)?; Ok(memory_sync::build_writeback_plan(candidates, items)) }
-
 #[tauri::command]
 fn append_session_event(session_id: String, runtime: Option<RuntimeKind>, event_type: String, payload_json: String, state: State<'_, AppState>) -> Result<SessionEvent, String> { let event = session::new_event(session_id, runtime, session::parse_event_type(&event_type), payload_json); state.db.save_session_event(&event).map_err(to_message)?; Ok(event) }
 #[tauri::command]
@@ -240,7 +239,6 @@ fn list_handoff_packs(state: State<'_, AppState>) -> Result<Vec<HandoffPack>, St
 fn create_handoff_pack(session_id: String, from_runtime: Option<RuntimeKind>, to_runtime: Option<RuntimeKind>, goal: String, summary: String, state: State<'_, AppState>) -> Result<HandoffPack, String> { let handoff = session::new_handoff(session_id, from_runtime, to_runtime, goal, summary); state.db.save_handoff_pack(&handoff).map_err(to_message)?; state.db.save_audit_event(&audit_event("handoff.create", "handoff_pack", &handoff.id, from_runtime, AuditSeverity::Info, "created handoff pack")).map_err(to_message)?; Ok(handoff) }
 #[tauri::command]
 fn build_session_sync_plan(state: State<'_, AppState>) -> Result<SessionSyncPlan, String> { let settings = settings::load_settings(&state.app_data_dir).map_err(to_message)?; Ok(session_scanner::build_session_sync_plan(settings.sync_enabled)) }
-
 #[tauri::command]
 fn restore_backup(backup_id: String, state: State<'_, AppState>) -> Result<(), String> { let backup = state.db.get_backup(&backup_id).map_err(to_message)?.ok_or_else(|| format!("backup not found: {backup_id}"))?; let event = installer::restore_backup(&backup).map_err(to_message)?; state.db.save_install_event(&event).map_err(to_message)?; state.db.save_audit_event(&audit_event("backup.restore", "install_backup", backup_id, Some(backup.runtime), AuditSeverity::Warn, "restored install backup")).map_err(to_message)?; Ok(()) }
 #[tauri::command]
@@ -260,13 +258,14 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_shell::init())
-        .setup(|app| { let app_data_dir = app.path().app_data_dir().unwrap_or_else(|_| dirs::home_dir().unwrap_or_default().join(".agent-buddy")); let db = Arc::new(Database::init(&app_data_dir).map_err(tauri::Error::Anyhow)?); app.manage(AppState { db, app_data_dir }); Ok(()) })
+        .setup(|app| { let app_data_dir = app.path().app_data_dir().unwrap_or_else(|_| dirs::home_dir().unwrap_or_default().join(".agent-buddy")); let db = Arc::new(Database::init(&app_data_dir).map_err(tauri::Error::Anyhow)?); let daemon = Arc::new(local_daemon::LocalDaemonControl::new()); app.manage(AppState { db, app_data_dir, daemon }); Ok(()) })
         .invoke_handler(tauri::generate_handler![
             load_settings, save_settings, get_paas_connection_status, get_paas_connection_info,
             preview_device_registration, preview_bundle_pull_request, create_paas_session,
             preview_paas_sync, build_sync_flush_plan, get_overview_dashboard, get_health_board,
             list_console_instances, list_console_instance_groups, preview_retention_cleanup_plan,
-            execute_retention_cleanup, preview_local_daemon_plan, refresh_agent_source, import_agent_source,
+            execute_retention_cleanup, preview_local_daemon_plan, start_local_daemon, stop_local_daemon,
+            get_local_daemon_status, refresh_agent_source, import_agent_source,
             import_agent_source_from_deeplink, preview_source_import_risk, refresh_agent_source_by_id,
             list_agent_sources, get_agent_source_detail, get_agent_markdown, preview_agent_runtime_conversion,
             list_bundle_catalog, build_local_source_bundle, build_source_bundle_diff, list_agents,
