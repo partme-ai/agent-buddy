@@ -18,7 +18,7 @@ Agent Buddy should first complete the local-first feature surface, then run vali
 | Instance persistence domain | Written | Added `instance.rs` with instance/group/upsert models and summaries. |
 | Inspector domain | Written | Added inspector snapshot models for instances, installations, and generated artifacts. |
 | Per-runtime Doctor reports | Written | Added runtime-level doctor score, checks, and remediation actions. |
-| Local daemon status model | Written | Added daemon status and start/stop preview model; real listener still pending. |
+| Local daemon runtime | Written | `local_daemon.rs` now starts/stops a minimal local HTTP listener with health, API metadata, and Buddy MCP metadata endpoints. |
 | Agent Source import | Written | Users can import Git/GitHub/local agent sources, including `agency-agents-zh`, into local Buddy management. |
 | Source-scoped agent management | Written | Agents carry `sourceId/sourceName`; UI supports source filter before runtime installation. |
 | Source Detail | Written | Source detail includes agents, categories, risk report, license/notice preview, and warnings. |
@@ -53,11 +53,12 @@ Agent Buddy should first complete the local-first feature surface, then run vali
 | Sync outbox | Written | Outbox model and pending event creation. |
 | Sync debounce plan | Written | Flush plan, grouping, retry/debounce policy. |
 | PaaS protocol preview | Written | Connection info, device registration, bundle pull, sync preview. |
-| Local API spec | Written | Future local daemon route spec. |
+| Local API spec | Written | Local daemon route spec. |
 | Console backend aggregation | Written | Added `console_core.rs` and commands for overview dashboard, health board, console instances, instance groups, retention cleanup preview, cleanup execution, and local daemon plan. |
 | Retention cleanup preview | Written | Preview command identifies old generated artifacts and backups based on local retention settings. |
 | Retention cleanup execution | Written | Confirmed cleanup command deletes eligible generated artifacts/backups, returns deleted/failed lists, and writes an audit event. |
 | Local daemon plan | Written | Preview command exposes intended Local API/MCP daemon bind settings, route count, MCP count, capabilities, and warnings. |
+| Local daemon start/stop/status commands | Written | Added `start_local_daemon`, `stop_local_daemon`, and `get_local_daemon_status`; frontend wrappers are also exposed. |
 | Runtime status report | Written | Device/runtime/install status snapshot. |
 | Approval flow | Written | Approval request/resolve models. |
 | Lifecycle plans | Written | Repair, uninstall, upgrade plan stubs. |
@@ -81,16 +82,15 @@ Agent Buddy should first complete the local-first feature surface, then run vali
 | Frontend install UX | Written | Agent source import, source detail, source filter, agent list, runtime selector, install wizard, records. |
 | Frontend state center | Written | Console pages now distribute Settings/PaaS/Risk/MCP/Memory/Knowledge/Session panels across final menu. |
 | Central adapter migration | Pending | The per-runtime files exist, but `adapters.rs` still owns active detection/conversion/path logic. |
-| Real local HTTP/MCP server | Pending | Route spec and daemon status model exist, but the server runtime is not implemented. |
 | Platform Deep Link registration | Pending | Parser exists; OS registration not wired. |
 | Build/typecheck/Tauri validation | Deferred | Intentionally postponed until feature surface is complete. |
 
 ## Next coding pass
 
-1. Wire `instance.rs`, `inspector.rs`, `runtime_doctor.rs`, and `local_daemon.rs` into Tauri commands.
+1. Wire daemon controls into the Settings / Enterprise page UI.
 2. Add SQLite persistence for `instances`, `instance_groups`, and tags.
 3. Move Markdown / Runtime preview into a persistent inspector drawer.
 4. Replace frontend-derived instance lists with backend `ConsoleInstance` plus persisted instance overlays.
-5. Implement real Local HTTP/MCP daemon runtime.
-6. Migrate active logic from central `adapters.rs` into `runtime_adapters/*` files.
+5. Migrate active logic from central `adapters.rs` into `runtime_adapters/*` files.
+6. Implement OS-level `agentbuddy://` registration.
 7. Only then run validation.
