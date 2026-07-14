@@ -1,0 +1,173 @@
+.instance-dock {
+  position: fixed;
+  left: 22px;
+  bottom: 22px;
+  z-index: 78;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.instance-dock-toggle {
+  background: #0f172a;
+  color: #fff;
+  border-radius: 999px;
+  padding: 11px 16px;
+  font-weight: 800;
+  box-shadow: 0 16px 40px rgba(15, 23, 42, .22);
+}
+
+.instance-dock-panel {
+  width: min(520px, calc(100vw - 28px));
+  max-height: min(760px, calc(100vh - 96px));
+  overflow: auto;
+  padding: 16px;
+  border: 1px solid rgba(226,232,240,.95);
+  border-radius: 24px;
+  background: rgba(255,255,255,.95);
+  backdrop-filter: blur(18px);
+  box-shadow: 0 22px 60px rgba(15,23,42,.18);
+}
+
+.instance-dock-header,
+.instance-dock-actions,
+.instance-dock-card > div:first-child {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.instance-dock-header strong,
+.instance-dock-section strong,
+.instance-dock-card strong {
+  color: #111827;
+}
+
+.instance-dock-header span,
+.instance-dock-card span {
+  color: #64748b;
+  font-size: 12px;
+}
+
+.instance-dock-metrics {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  margin: 12px 0;
+}
+
+.instance-dock-metric {
+  min-width: 0;
+  padding: 9px;
+  border-radius: 12px;
+  background: #f1f5f9;
+}
+
+.instance-dock-metric span {
+  display: block;
+  color: #64748b;
+  font-size: 11px;
+}
+
+.instance-dock-metric strong {
+  display: block;
+  color: #111827;
+  font-size: 16px;
+}
+
+.instance-dock-section {
+  margin-top: 14px;
+  padding: 14px;
+  border: 1px solid rgba(226,232,240,.9);
+  border-radius: 18px;
+  background: linear-gradient(180deg, #fff, #f8fafc);
+  display: grid;
+  gap: 10px;
+}
+
+.instance-dock-section input,
+.instance-dock-section select {
+  min-height: 38px;
+  border: 1px solid #cbd5e1;
+  border-radius: 12px;
+  padding: 0 10px;
+  background: #fff;
+}
+
+.instance-dock-actions {
+  justify-content: flex-start;
+  flex-wrap: wrap;
+}
+
+.instance-dock-actions button,
+.instance-dock-section > button {
+  border-radius: 12px;
+  background: #eff6ff;
+  color: #1d4ed8;
+  padding: 9px 11px;
+  font-weight: 800;
+}
+
+.instance-dock-actions button:disabled,
+.instance-dock-section > button:disabled {
+  opacity: .5;
+}
+
+.instance-dock-list {
+  max-height: 480px;
+  overflow: auto;
+}
+
+.instance-dock-card {
+  padding: 12px;
+  border: 1px solid rgba(226,232,240,.9);
+  border-radius: 16px;
+  background: #fff;
+  display: grid;
+  gap: 8px;
+}
+
+.instance-dock-card p {
+  margin: 0;
+  color: #475569;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.instance-tags {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.instance-tags em {
+  font-style: normal;
+  padding: 4px 8px;
+  border-radius: 999px;
+  background: #e0f2fe;
+  color: #0369a1;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.instance-empty {
+  min-height: 90px;
+  display: grid;
+  place-items: center;
+  color: #94a3b8;
+  border: 1px dashed #cbd5e1;
+  border-radius: 16px;
+}
+
+@media (max-width: 900px) {
+  .instance-dock {
+    left: 14px;
+    bottom: 74px;
+  }
+
+  .instance-dock-metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
