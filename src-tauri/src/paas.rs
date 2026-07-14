@@ -1,8 +1,12 @@
 use crate::bundle::AgentBundle;
 use crate::runtime::RuntimeKind;
 use crate::settings::AgentBuddySettings;
+use crate::sync::SyncOutboxEvent;
 use serde::{Deserialize, Serialize};
+use std::path::{Path, PathBuf};
 use uuid::Uuid;
+
+const PAAS_SESSION_FILE: &str = "paas-session.json";
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -47,6 +51,13 @@ pub struct PaasSession {
     pub access_token_hint: String,
     pub created_at: i64,
     pub expires_at: Option<i64>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct StoredPaasSession {
+    pub session: PaasSession,
+    pub access_token: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -111,6 +122,27 @@ pub struct PaasSyncPreview {
     pub warnings: Vec<String>,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PaasHttpResult {
+    pub endpoint: String,
+    pub method: String,
+    pub ok: bool,
+    pub status_code: Option<u16>,
+    pub sent_at: i64,
+    pub request_body_preview: String,
+    pub response_preview: String,
+    pub error: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PaasSyncPushRequest {
+    pub device_id: String,
+    pub workspace_id: String,
+    pub events: Vec<SyncOutboxEvent>,
+}
+
 pub fn connection_info(settings: &AgentBuddySettings) -> PaasConnectionInfo {
     let base = settings.paas_base_url.trim_end_matches('/').to_string();
     PaasConnectionInfo {
@@ -138,27 +170,58 @@ pub fn connection_status(base_url: String, session: Option<PaasSession>) -> Paas
             base_url: session.base_url,
             workspace_id: Some(session.workspace_id),
             user_id: Some(session.user_id),
-            message: "PaaS session is configured locally. Network sync is not executed in the current local MVP.".to_string(),
+            message: "PaaS session is stored locally and can execute authenticated requests.".to_string(),
         },
-        None => PaasConnectionStatus {
-            configured: !base_url.trim().is_empty(),
-            authenticated: false,
-            base_url,
-            workspace_id: None,
-            user_id: None,
-            message: "No PaaS session is stored locally.".to_string(),
-        },
+        None => PaasConnectionStatus { configured: !base_url.trim().is_empty(), authenticated: false, base_url, workspace_id: None, user_id: None, message: "No PaaS session is stored locally.".to_string() },
     }
 }
 
 pub fn create_session(request: PaasLoginRequest) -> PaasSession {
     let now = chrono::Utc::now().timestamp();
-    let token_hint = if request.access_token.len() <= 8 {
-        "***".to_string()
-    } else {
-        format!("{}…{}", &request.access_token[..4], &request.access_token[request.access_token.len() - 4..])
-    };
-    PaasSession { id: Uuid::new_v4().to_string(), base_url: request.base_url, workspace_id: request.workspace_id, user_id: request.user_id, access_token_hint: token_hint, created_at: now, expires_at: None }
+    let token_hint = token_hint(&request.access_token);
+    PaasSession { id: Uuid::new_v4().to_string(), base_url: request.base_url.trim_end_matches('/').to_string(), workspace_id: request.workspace_id, user_id: request.user_id, access_token_hint: token_hint, created_at: now, expires_at: None }
+}
+
+pub fn save_session(app_data_dir: &Path, request: PaasLoginRequest) -> anyhow::Result<PaasSession> {
+    std::fs::create_dir_all(app_data_dir)?;
+    let access_token = request.access_token.clone();
+    let session = create_session(request);
+    let stored = StoredPaasSession { session: session.clone(), access_token };
+    let content = serde_json::to_string_pretty(&stored)?;
+    std::fs::write(session_file(app_data_dir), content)?;
+    Ok(session)
+}
+
+pub fn load_session(app_data_dir: &Path) -> anyhow::Result<Option<PaasSession>> {
+    Ok(load_stored_session(app_data_dir)?.map(|stored| stored.session))
+}
+
+pub fn clear_session(app_data_dir: &Path) -> anyhow::Result<()> {
+    let path = session_file(app_data_dir);
+    if path.exists() { std::fs::remove_file(path)?; }
+    Ok(())
+}
+
+pub fn execute_device_registration(app_data_dir: &Path, settings: &AgentBuddySettings) -> anyhow::Result<PaasHttpResult> {
+    let stored = require_stored_session(app_data_dir)?;
+    let info = connection_info(settings);
+    let request = device_registration_request(settings);
+    post_json(&info.endpoints.device_register, &stored.access_token, &request)
+}
+
+pub fn execute_bundle_pull(app_data_dir: &Path, settings: &AgentBuddySettings, runtime_targets: Vec<String>) -> anyhow::Result<PaasHttpResult> {
+    let stored = require_stored_session(app_data_dir)?;
+    let mut request = bundle_pull_request(settings, runtime_targets);
+    request.user_id = Some(stored.session.user_id.clone());
+    let info = connection_info(settings);
+    post_json(&info.endpoints.agent_bundles, &stored.access_token, &request)
+}
+
+pub fn execute_sync_push(app_data_dir: &Path, settings: &AgentBuddySettings, events: Vec<SyncOutboxEvent>) -> anyhow::Result<PaasHttpResult> {
+    let stored = require_stored_session(app_data_dir)?;
+    let info = connection_info(settings);
+    let request = PaasSyncPushRequest { device_id: settings.device_id.clone(), workspace_id: stored.session.workspace_id.clone(), events };
+    post_json(&info.endpoints.sync_outbox, &stored.access_token, &request)
 }
 
 pub fn device_registration_request(settings: &AgentBuddySettings) -> DeviceRegistrationRequest {
@@ -202,6 +265,46 @@ pub fn preview_sync(destination: String, events: Vec<String>) -> PaasSyncPreview
     PaasSyncPreview { pending_events: events.len(), destination, event_types: events, warnings }
 }
 
-pub fn default_runtime_targets() -> Vec<RuntimeKind> {
-    RuntimeKind::all()
+pub fn default_runtime_targets() -> Vec<RuntimeKind> { RuntimeKind::all() }
+
+fn post_json<T: Serialize>(endpoint: &str, access_token: &str, body: &T) -> anyhow::Result<PaasHttpResult> {
+    let sent_at = chrono::Utc::now().timestamp();
+    let body_string = serde_json::to_string(body)?;
+    if endpoint.trim().is_empty() {
+        return Ok(PaasHttpResult { endpoint: endpoint.to_string(), method: "POST".to_string(), ok: false, status_code: None, sent_at, request_body_preview: truncate(&body_string), response_preview: String::new(), error: Some("PaaS endpoint is empty".to_string()) });
+    }
+    let response = ureq::post(endpoint)
+        .set("Authorization", &format!("Bearer {access_token}"))
+        .set("Content-Type", "application/json")
+        .send_string(&body_string);
+    match response {
+        Ok(response) => {
+            let status = response.status();
+            let text = response.into_string().unwrap_or_default();
+            Ok(PaasHttpResult { endpoint: endpoint.to_string(), method: "POST".to_string(), ok: (200..300).contains(&status), status_code: Some(status), sent_at, request_body_preview: truncate(&body_string), response_preview: truncate(&text), error: None })
+        }
+        Err(error) => Ok(PaasHttpResult { endpoint: endpoint.to_string(), method: "POST".to_string(), ok: false, status_code: error.status(), sent_at, request_body_preview: truncate(&body_string), response_preview: error.to_string(), error: Some(error.to_string()) }),
+    }
+}
+
+fn load_stored_session(app_data_dir: &Path) -> anyhow::Result<Option<StoredPaasSession>> {
+    let path = session_file(app_data_dir);
+    if !path.exists() { return Ok(None); }
+    let content = std::fs::read_to_string(path)?;
+    Ok(Some(serde_json::from_str(&content)?))
+}
+
+fn require_stored_session(app_data_dir: &Path) -> anyhow::Result<StoredPaasSession> {
+    load_stored_session(app_data_dir)?.ok_or_else(|| anyhow::anyhow!("No PaaS session is stored locally"))
+}
+
+fn session_file(app_data_dir: &Path) -> PathBuf { app_data_dir.join(PAAS_SESSION_FILE) }
+
+fn token_hint(access_token: &str) -> String {
+    if access_token.len() <= 8 { "***".to_string() } else { format!("{}…{}", &access_token[..4], &access_token[access_token.len() - 4..]) }
+}
+
+fn truncate(value: &str) -> String {
+    const LIMIT: usize = 2_000;
+    if value.len() <= LIMIT { value.to_string() } else { format!("{}…", &value[..LIMIT]) }
 }
