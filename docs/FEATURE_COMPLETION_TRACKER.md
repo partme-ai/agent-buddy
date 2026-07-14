@@ -11,11 +11,14 @@ Agent Buddy should first complete the local-first feature surface, then run vali
 | Area | Status | Notes |
 |---|---:|---|
 | Tauri / React / Rust shell | Written | Desktop shell and command bridge exist. |
-| SQLite local state | Written | Sources, detections, installs, backups, events, audit, sync, memory, knowledge, session. |
+| SQLite local state | Written | Sources, detections, installs, backups, events, audit, sync, memory, knowledge, session, persistent console instances/groups/tags. |
 | 18 Runtime registry | Written | Covers the full `agency-agents-zh` target list. |
 | 18 Runtime adapter manifest | Written | Detect methods, install targets, generated formats, integration methods and support levels are declared. |
 | 18 per-runtime adapter files | Written | Added physical files under `src-tauri/src/runtime_adapters/`; central migration still pending. |
 | Instance persistence domain | Written | Added `instance.rs` with instance/group/upsert models and summaries. |
+| Instance persistence tables | Written | Added `instances`, `instance_groups`, and `instance_tags` SQLite tables plus DAO methods. |
+| Instance persistence commands | Written | Added commands for upsert/list/delete instances, upsert/list/delete groups, summaries, tag updates, and group assignment. |
+| Instance persistence frontend API | Written | Added `src/instanceTypes.ts` and `tauri.ts` wrappers for persisted instance operations. |
 | Inspector domain | Written | Added inspector snapshot models for instances, installations, and generated artifacts. |
 | Per-runtime Doctor reports | Written | Added runtime-level doctor score, checks, and remediation actions. |
 | Local daemon runtime | Written | `local_daemon.rs` now starts/stops a minimal local HTTP listener with health, API metadata, and Buddy MCP metadata endpoints. |
@@ -88,9 +91,8 @@ Agent Buddy should first complete the local-first feature surface, then run vali
 
 ## Next coding pass
 
-1. Add SQLite persistence for `instances`, `instance_groups`, and tags.
-2. Move Markdown / Runtime preview into a persistent inspector drawer.
-3. Replace frontend-derived instance lists with backend `ConsoleInstance` plus persisted instance overlays.
-4. Migrate active logic from central `adapters.rs` into `runtime_adapters/*` files.
-5. Implement OS-level `agentbuddy://` registration.
-6. Only then run validation.
+1. Move Markdown / Runtime preview into a persistent inspector drawer.
+2. Replace frontend-derived instance lists with backend `ConsoleInstance` plus persisted instance overlays.
+3. Migrate active logic from central `adapters.rs` into `runtime_adapters/*` files.
+4. Implement OS-level `agentbuddy://` registration.
+5. Only then run validation.
