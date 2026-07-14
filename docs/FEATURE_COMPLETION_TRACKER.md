@@ -71,11 +71,14 @@ Agent Buddy should first complete the local-first feature surface, then run vali
 | Approval flow | Written | Approval request/resolve models. |
 | Lifecycle plans | Written | Repair, uninstall, upgrade plan stubs. |
 | Deep Link install-source | Written | `agentbuddy://install-source?url=...` can parse and execute source import. |
+| Platform Deep Link registration | Written | `agentbuddy://register-protocol` checks protocol status; `agentbuddy://register-protocol?execute=true` performs Windows HKCU registration or Linux desktop/mimeapps registration; macOS reports bundle requirements. |
+| Protocol registration UI | Written | Added `ProtocolRegistrationDock.tsx` and styles to check/register the local protocol handler from the UI. |
 | Full Agent Console menu | Written | Left navigation now covers Overview, Instances, Agents, Knowledge, Wiki, Memory, Sessions, and Settings. |
 | Complete final-menu ConsoleApp | Written | Added `src/ConsoleAppComplete.tsx` and switched `src/App.tsx` to this full page matrix. |
 | Refined Console layout layer | Written | Added `src/layout.css` with sticky topbar, responsive behavior, right-rail-ready layouts, table/card density, and workbench primitives. |
 | Final menu page completion styles | Written | Added `src/complete-console.css` for page-specific density, cards, timelines, tables, settings forms, operational dock, and inspector drawer. |
 | Instance governance styles | Written | Added `src/instance-governance.css` for backend/persisted instance overlay controls. |
+| Protocol registration styles | Written | Added `src/protocol-registration.css` for the protocol registration dock. |
 | Overview Dashboard | Written | Aggregates metrics, global health score, runtime strip, sync flush plan, and recent events. |
 | Health Board | Written | Displays Agent Doctor, risks, recent tasks, sync failures, and runtime health table. |
 | Instance Console | Written | Derived instances cover runtime, agent installation, MCP, knowledge, memory, sessions, and local API. |
@@ -90,12 +93,10 @@ Agent Buddy should first complete the local-first feature surface, then run vali
 | Settings | Written | Local settings with device ID and retention flags. |
 | Frontend install UX | Written | Agent source import, source detail, source filter, agent list, runtime selector, install wizard, records. |
 | Frontend state center | Written | Console pages now distribute Settings/PaaS/Risk/MCP/Memory/Knowledge/Session panels across final menu. |
-| Platform Deep Link registration | Pending | Parser exists; OS registration not wired. |
 | Build/typecheck/Tauri validation | Deferred | Intentionally postponed until feature surface is complete. |
 
 ## Next coding pass
 
-1. Implement OS-level `agentbuddy://` registration.
-2. Add full PaaS login/pull/push sync implementation beyond preview.
-3. Add Knowledge/Memory/Session runtime execution depth beyond metadata/plans.
-4. Only then run validation.
+1. Add full PaaS login/pull/push sync implementation beyond preview.
+2. Add Knowledge/Memory/Session runtime execution depth beyond metadata/plans.
+3. Only then run validation.
