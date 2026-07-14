@@ -1,3 +1,9 @@
 import ConsoleAppComplete from './ConsoleAppComplete'
+import OperationalControls from './OperationalControls'
 
-export default ConsoleAppComplete
+export default function App() {
+  return <>
+    <ConsoleAppComplete />
+    <OperationalControls />
+  </>
+}
