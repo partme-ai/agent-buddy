@@ -5,6 +5,7 @@ import './styles.css'
 import './layout.css'
 import './complete-console.css'
 import './instance-governance.css'
+import './protocol-registration.css'
 
 ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
   <React.StrictMode>
