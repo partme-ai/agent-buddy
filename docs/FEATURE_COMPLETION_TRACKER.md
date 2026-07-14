@@ -19,6 +19,7 @@ Agent Buddy should first complete the local-first feature surface, then run vali
 | Instance persistence tables | Written | Added `instances`, `instance_groups`, and `instance_tags` SQLite tables plus DAO methods. |
 | Instance persistence commands | Written | Added commands for upsert/list/delete instances, upsert/list/delete groups, summaries, tag updates, and group assignment. |
 | Instance persistence frontend API | Written | Added `src/instanceTypes.ts` and `tauri.ts` wrappers for persisted instance operations. |
+| Instance governance overlay | Written | Added `InstanceGovernanceDock.tsx` to read backend `ConsoleInstance`, read persisted instances/groups, persist backend instances, assign groups, update tags, and delete persisted instances. |
 | Inspector domain | Written | Added inspector snapshot models for instances, installations, and generated artifacts. |
 | Persistent Inspector Drawer | Written | Added `src/InspectorDrawer.tsx` and mounted it in `App.tsx`; it can inspect Agent Markdown, Runtime conversion, and generated artifacts globally. |
 | Per-runtime Doctor reports | Written | Added runtime-level doctor score, checks, and remediation actions. |
@@ -72,6 +73,7 @@ Agent Buddy should first complete the local-first feature surface, then run vali
 | Complete final-menu ConsoleApp | Written | Added `src/ConsoleAppComplete.tsx` and switched `src/App.tsx` to this full page matrix. |
 | Refined Console layout layer | Written | Added `src/layout.css` with sticky topbar, responsive behavior, right-rail-ready layouts, table/card density, and workbench primitives. |
 | Final menu page completion styles | Written | Added `src/complete-console.css` for page-specific density, cards, timelines, tables, settings forms, operational dock, and inspector drawer. |
+| Instance governance styles | Written | Added `src/instance-governance.css` for backend/persisted instance overlay controls. |
 | Overview Dashboard | Written | Aggregates metrics, global health score, runtime strip, sync flush plan, and recent events. |
 | Health Board | Written | Displays Agent Doctor, risks, recent tasks, sync failures, and runtime health table. |
 | Instance Console | Written | Derived instances cover runtime, agent installation, MCP, knowledge, memory, sessions, and local API. |
@@ -92,7 +94,6 @@ Agent Buddy should first complete the local-first feature surface, then run vali
 
 ## Next coding pass
 
-1. Replace frontend-derived instance lists with backend `ConsoleInstance` plus persisted instance overlays.
-2. Migrate active logic from central `adapters.rs` into `runtime_adapters/*` files.
-3. Implement OS-level `agentbuddy://` registration.
-4. Only then run validation.
+1. Migrate active logic from central `adapters.rs` into `runtime_adapters/*` files.
+2. Implement OS-level `agentbuddy://` registration.
+3. Only then run validation.
