@@ -61,6 +61,9 @@ Agent Buddy should first complete the local-first feature surface, then run vali
 | Sync outbox | Written | Outbox model and pending event creation. |
 | Sync debounce plan | Written | Flush plan, grouping, retry/debounce policy. |
 | PaaS protocol preview | Written | Connection info, device registration, bundle pull, sync preview. |
+| PaaS session persistence | Written | `paas-session.json` stores the local PaaS session and token hint while keeping the token out of UI payloads. |
+| PaaS HTTP execution | Written | Added authenticated POST execution for device registration, bundle pull, and sync outbox push through `ureq`. |
+| PaaS controls dock | Written | Added `PaaSControlsDock.tsx` to save/clear sessions, register device, pull bundles, and push sync outbox from the UI. |
 | Local API spec | Written | Local daemon route spec. |
 | Console backend aggregation | Written | Added `console_core.rs` and commands for overview dashboard, health board, console instances, instance groups, retention cleanup preview, cleanup execution, and local daemon plan. |
 | Retention cleanup preview | Written | Preview command identifies old generated artifacts and backups based on local retention settings. |
@@ -97,6 +100,5 @@ Agent Buddy should first complete the local-first feature surface, then run vali
 
 ## Next coding pass
 
-1. Add full PaaS login/pull/push sync implementation beyond preview.
-2. Add Knowledge/Memory/Session runtime execution depth beyond metadata/plans.
-3. Only then run validation.
+1. Add Knowledge/Memory/Session runtime execution depth beyond metadata/plans.
+2. Then run validation.
