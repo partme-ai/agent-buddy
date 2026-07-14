@@ -1,0 +1,129 @@
+.protocol-dock {
+  position: fixed;
+  right: 22px;
+  bottom: 168px;
+  z-index: 82;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 10px;
+}
+
+.protocol-dock-toggle {
+  background: #312e81;
+  color: #fff;
+  border-radius: 999px;
+  padding: 11px 16px;
+  font-weight: 800;
+  box-shadow: 0 16px 40px rgba(49,46,129,.22);
+}
+
+.protocol-dock-panel {
+  width: min(430px, calc(100vw - 28px));
+  max-height: min(680px, calc(100vh - 110px));
+  overflow: auto;
+  padding: 16px;
+  border: 1px solid rgba(199,210,254,.95);
+  border-radius: 24px;
+  background: rgba(255,255,255,.96);
+  backdrop-filter: blur(18px);
+  box-shadow: 0 22px 60px rgba(49,46,129,.18);
+}
+
+.protocol-dock-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.protocol-dock-header strong {
+  color: #111827;
+}
+
+.protocol-dock-header span {
+  color: #64748b;
+  font-size: 12px;
+}
+
+.protocol-dock-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin: 12px 0;
+}
+
+.protocol-metric {
+  min-width: 0;
+  padding: 9px;
+  border-radius: 12px;
+  background: #eef2ff;
+}
+
+.protocol-metric span {
+  display: block;
+  color: #6366f1;
+  font-size: 11px;
+}
+
+.protocol-metric strong {
+  display: block;
+  color: #111827;
+  font-size: 12px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.protocol-state {
+  margin: 10px 0;
+  padding: 10px;
+  border-radius: 12px;
+  font-size: 12px;
+}
+
+.protocol-state.ok {
+  background: #ecfdf5;
+  color: #047857;
+}
+
+.protocol-state.warn {
+  background: #fffbeb;
+  color: #92400e;
+}
+
+.protocol-dock pre {
+  max-height: 120px;
+  overflow: auto;
+  margin: 10px 0;
+  padding: 10px;
+  border-radius: 12px;
+  background: #020617;
+  color: #dbeafe;
+  font-size: 11px;
+  white-space: pre-wrap;
+}
+
+.protocol-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.protocol-actions button {
+  border-radius: 12px;
+  background: #eef2ff;
+  color: #4338ca;
+  padding: 9px 11px;
+  font-weight: 800;
+}
+
+.protocol-actions button:disabled {
+  opacity: .5;
+}
+
+@media (max-width: 900px) {
+  .protocol-dock {
+    right: 14px;
+    bottom: 160px;
+  }
+}
