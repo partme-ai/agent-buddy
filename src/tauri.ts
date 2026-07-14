@@ -72,6 +72,9 @@ import type {
   ConsoleInstanceGroup,
   ConsoleOverviewDashboard,
   LocalDaemonPlan,
+  LocalDaemonStartResult,
+  LocalDaemonStatus,
+  LocalDaemonStopResult,
   RetentionCleanupPlan,
   RetentionCleanupResult,
 } from './consoleTypes'
@@ -92,6 +95,9 @@ export function listConsoleInstanceGroups(): Promise<ConsoleInstanceGroup[]> { r
 export function previewRetentionCleanupPlan(): Promise<RetentionCleanupPlan> { return invoke('preview_retention_cleanup_plan') }
 export function executeRetentionCleanup(confirm: boolean): Promise<RetentionCleanupResult> { return invoke('execute_retention_cleanup', { confirm }) }
 export function previewLocalDaemonPlan(): Promise<LocalDaemonPlan> { return invoke('preview_local_daemon_plan') }
+export function startLocalDaemon(): Promise<LocalDaemonStartResult> { return invoke('start_local_daemon') }
+export function stopLocalDaemon(): Promise<LocalDaemonStopResult> { return invoke('stop_local_daemon') }
+export function getLocalDaemonStatus(): Promise<LocalDaemonStatus> { return invoke('get_local_daemon_status') }
 export function refreshAgentSource(): Promise<SourceRefreshResult> { return invoke('refresh_agent_source') }
 export function importAgentSource(request: SourceImportRequest): Promise<SourceRefreshResult> { return invoke('import_agent_source', { request }) }
 export function importAgentSourceFromDeepLink(url: string): Promise<SourceRefreshResult> { return invoke('import_agent_source_from_deeplink', { url }) }
