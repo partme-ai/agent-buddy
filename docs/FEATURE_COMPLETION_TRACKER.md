@@ -19,6 +19,7 @@ Agent Buddy should first complete the local-first feature surface, then run vali
 | Inspector domain | Written | Added inspector snapshot models for instances, installations, and generated artifacts. |
 | Per-runtime Doctor reports | Written | Added runtime-level doctor score, checks, and remediation actions. |
 | Local daemon runtime | Written | `local_daemon.rs` now starts/stops a minimal local HTTP listener with health, API metadata, and Buddy MCP metadata endpoints. |
+| Operational controls dock | Written | Added `OperationalControls.tsx` to start/stop/check daemon status and preview/execute retention cleanup from the UI. |
 | Agent Source import | Written | Users can import Git/GitHub/local agent sources, including `agency-agents-zh`, into local Buddy management. |
 | Source-scoped agent management | Written | Agents carry `sourceId/sourceName`; UI supports source filter before runtime installation. |
 | Source Detail | Written | Source detail includes agents, categories, risk report, license/notice preview, and warnings. |
@@ -87,10 +88,9 @@ Agent Buddy should first complete the local-first feature surface, then run vali
 
 ## Next coding pass
 
-1. Wire daemon controls into the Settings / Enterprise page UI.
-2. Add SQLite persistence for `instances`, `instance_groups`, and tags.
-3. Move Markdown / Runtime preview into a persistent inspector drawer.
-4. Replace frontend-derived instance lists with backend `ConsoleInstance` plus persisted instance overlays.
-5. Migrate active logic from central `adapters.rs` into `runtime_adapters/*` files.
-6. Implement OS-level `agentbuddy://` registration.
-7. Only then run validation.
+1. Add SQLite persistence for `instances`, `instance_groups`, and tags.
+2. Move Markdown / Runtime preview into a persistent inspector drawer.
+3. Replace frontend-derived instance lists with backend `ConsoleInstance` plus persisted instance overlays.
+4. Migrate active logic from central `adapters.rs` into `runtime_adapters/*` files.
+5. Implement OS-level `agentbuddy://` registration.
+6. Only then run validation.
