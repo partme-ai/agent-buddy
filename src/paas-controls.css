@@ -1,0 +1,150 @@
+.paas-dock {
+  position: fixed;
+  left: 22px;
+  bottom: 92px;
+  z-index: 82;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.paas-dock-toggle {
+  background: #0f766e;
+  color: #fff;
+  border-radius: 999px;
+  padding: 11px 16px;
+  font-weight: 800;
+  box-shadow: 0 16px 40px rgba(15, 118, 110, .22);
+}
+
+.paas-dock-panel {
+  width: min(460px, calc(100vw - 28px));
+  max-height: min(760px, calc(100vh - 118px));
+  overflow: auto;
+  padding: 16px;
+  border: 1px solid rgba(153,246,228,.9);
+  border-radius: 24px;
+  background: rgba(240,253,250,.96);
+  backdrop-filter: blur(18px);
+  box-shadow: 0 22px 60px rgba(15,118,110,.2);
+}
+
+.paas-dock-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.paas-dock-header strong,
+.paas-section strong,
+.paas-result strong {
+  color: #042f2e;
+}
+
+.paas-dock-header span,
+.paas-section p,
+.paas-result span,
+.paas-result em {
+  color: #0f766e;
+  font-size: 12px;
+}
+
+.paas-section {
+  margin-top: 14px;
+  padding: 14px;
+  border: 1px solid rgba(153,246,228,.9);
+  border-radius: 18px;
+  background: linear-gradient(180deg, #fff, #ccfbf1);
+}
+
+.paas-metrics {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin: 12px 0;
+}
+
+.paas-metric {
+  min-width: 0;
+  padding: 9px;
+  border-radius: 12px;
+  background: #ecfeff;
+}
+
+.paas-metric span {
+  display: block;
+  color: #0f766e;
+  font-size: 11px;
+}
+
+.paas-metric strong {
+  display: block;
+  color: #042f2e;
+  font-size: 13px;
+}
+
+.paas-form {
+  display: grid;
+  gap: 8px;
+}
+
+.paas-form input {
+  min-height: 38px;
+  border: 1px solid #99f6e4;
+  border-radius: 12px;
+  padding: 0 10px;
+  background: #fff;
+}
+
+.paas-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.paas-actions button,
+.paas-section > button {
+  border-radius: 12px;
+  background: #ccfbf1;
+  color: #0f766e;
+  padding: 9px 11px;
+  font-weight: 800;
+}
+
+.paas-actions button:disabled,
+.paas-section > button:disabled {
+  opacity: .5;
+}
+
+.paas-result {
+  margin-top: 14px;
+  padding: 14px;
+  border-radius: 18px;
+  display: grid;
+  gap: 6px;
+}
+
+.paas-result.ok { background: #ecfdf5; color: #047857; }
+.paas-result.error { background: #fef2f2; color: #b91c1c; }
+
+.paas-result pre {
+  max-height: 260px;
+  overflow: auto;
+  white-space: pre-wrap;
+  margin: 0;
+  padding: 12px;
+  border-radius: 14px;
+  background: #022c22;
+  color: #ccfbf1;
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+@media (max-width: 900px) {
+  .paas-dock {
+    left: 14px;
+    bottom: 82px;
+  }
+}
