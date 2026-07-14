@@ -14,7 +14,9 @@ Agent Buddy should first complete the local-first feature surface, then run vali
 | SQLite local state | Written | Sources, detections, installs, backups, events, audit, sync, memory, knowledge, session, persistent console instances/groups/tags. |
 | 18 Runtime registry | Written | Covers the full `agency-agents-zh` target list. |
 | 18 Runtime adapter manifest | Written | Detect methods, install targets, generated formats, integration methods and support levels are declared. |
-| 18 per-runtime adapter files | Written | Added physical files under `src-tauri/src/runtime_adapters/`; central migration still pending. |
+| 18 per-runtime adapter files | Written | Added physical files under `src-tauri/src/runtime_adapters/`; descriptor modules exist for all supported runtimes. |
+| Runtime adapter facade migration | Written | `adapters.rs` now delegates runtime definitions, detection, target directory resolution, and generated-file conversion into `runtime_adapters/*`. |
+| Runtime adapter generation module | Written | Moved runtime generated-file conversion into `runtime_adapters/generation.rs`. |
 | Instance persistence domain | Written | Added `instance.rs` with instance/group/upsert models and summaries. |
 | Instance persistence tables | Written | Added `instances`, `instance_groups`, and `instance_tags` SQLite tables plus DAO methods. |
 | Instance persistence commands | Written | Added commands for upsert/list/delete instances, upsert/list/delete groups, summaries, tag updates, and group assignment. |
@@ -88,12 +90,12 @@ Agent Buddy should first complete the local-first feature surface, then run vali
 | Settings | Written | Local settings with device ID and retention flags. |
 | Frontend install UX | Written | Agent source import, source detail, source filter, agent list, runtime selector, install wizard, records. |
 | Frontend state center | Written | Console pages now distribute Settings/PaaS/Risk/MCP/Memory/Knowledge/Session panels across final menu. |
-| Central adapter migration | Pending | The per-runtime files exist, but `adapters.rs` still owns active detection/conversion/path logic. |
 | Platform Deep Link registration | Pending | Parser exists; OS registration not wired. |
 | Build/typecheck/Tauri validation | Deferred | Intentionally postponed until feature surface is complete. |
 
 ## Next coding pass
 
-1. Migrate active logic from central `adapters.rs` into `runtime_adapters/*` files.
-2. Implement OS-level `agentbuddy://` registration.
-3. Only then run validation.
+1. Implement OS-level `agentbuddy://` registration.
+2. Add full PaaS login/pull/push sync implementation beyond preview.
+3. Add Knowledge/Memory/Session runtime execution depth beyond metadata/plans.
+4. Only then run validation.
