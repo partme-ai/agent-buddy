@@ -196,6 +196,130 @@
   width: fit-content;
 }
 
+.ops-dock {
+  position: fixed;
+  right: 22px;
+  bottom: 22px;
+  z-index: 80;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 10px;
+}
+
+.ops-dock-toggle {
+  background: #111827;
+  color: #fff;
+  border-radius: 999px;
+  padding: 11px 16px;
+  font-weight: 800;
+  box-shadow: 0 16px 40px rgba(15, 23, 42, .22);
+}
+
+.ops-dock-panel {
+  width: min(430px, calc(100vw - 28px));
+  max-height: min(720px, calc(100vh - 96px));
+  overflow: auto;
+  padding: 16px;
+  border: 1px solid rgba(226,232,240,.95);
+  border-radius: 24px;
+  background: rgba(255,255,255,.94);
+  backdrop-filter: blur(18px);
+  box-shadow: 0 22px 60px rgba(15,23,42,.18);
+}
+
+.ops-dock-header,
+.ops-section-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.ops-dock-header strong,
+.ops-section-title strong {
+  color: #111827;
+}
+
+.ops-dock-header span,
+.ops-section-title span {
+  color: #64748b;
+  font-size: 12px;
+}
+
+.ops-section {
+  margin-top: 14px;
+  padding: 14px;
+  border: 1px solid rgba(226,232,240,.9);
+  border-radius: 18px;
+  background: linear-gradient(180deg, #fff, #f8fafc);
+}
+
+.ops-metrics {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin: 12px 0;
+}
+
+.ops-metric {
+  min-width: 0;
+  padding: 9px;
+  border-radius: 12px;
+  background: #f1f5f9;
+}
+
+.ops-metric span {
+  display: block;
+  color: #64748b;
+  font-size: 11px;
+}
+
+.ops-metric strong {
+  display: block;
+  color: #111827;
+  font-size: 12px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ops-warning,
+.ops-result {
+  margin: 10px 0;
+  padding: 10px;
+  border-radius: 12px;
+  background: #fffbeb;
+  color: #92400e;
+  font-size: 12px;
+}
+
+.ops-result {
+  background: #ecfdf5;
+  color: #047857;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.ops-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.ops-actions button {
+  border-radius: 12px;
+  background: #eff6ff;
+  color: #1d4ed8;
+  padding: 9px 11px;
+  font-weight: 800;
+}
+
+.ops-actions button:disabled {
+  opacity: .5;
+}
+
 @media (min-width: 1500px) {
   .complete-console .expert-grid {
     grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
@@ -209,5 +333,10 @@
 
   .complete-console .console-menu {
     grid-template-columns: 1fr;
+  }
+
+  .ops-dock {
+    right: 14px;
+    bottom: 14px;
   }
 }
