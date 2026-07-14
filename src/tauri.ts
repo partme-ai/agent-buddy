@@ -78,6 +78,13 @@ import type {
   RetentionCleanupPlan,
   RetentionCleanupResult,
 } from './consoleTypes'
+import type {
+  InstanceGroupRecord,
+  InstanceGroupSummary,
+  InstanceGroupUpsertRequest,
+  InstanceRecord,
+  InstanceUpsertRequest,
+} from './instanceTypes'
 
 export function loadSettings(): Promise<AgentBuddySettings> { return invoke('load_settings') }
 export function saveSettings(settings: AgentBuddySettings): Promise<AgentBuddySettings> { return invoke('save_settings', { settings }) }
@@ -98,6 +105,15 @@ export function previewLocalDaemonPlan(): Promise<LocalDaemonPlan> { return invo
 export function startLocalDaemon(): Promise<LocalDaemonStartResult> { return invoke('start_local_daemon') }
 export function stopLocalDaemon(): Promise<LocalDaemonStopResult> { return invoke('stop_local_daemon') }
 export function getLocalDaemonStatus(): Promise<LocalDaemonStatus> { return invoke('get_local_daemon_status') }
+export function upsertInstance(request: InstanceUpsertRequest): Promise<InstanceRecord> { return invoke('upsert_instance', { request }) }
+export function listPersistedInstances(): Promise<InstanceRecord[]> { return invoke('list_persisted_instances') }
+export function deletePersistedInstance(instanceId: string): Promise<void> { return invoke('delete_persisted_instance', { instanceId }) }
+export function setInstanceTags(instanceId: string, tags: string[]): Promise<InstanceRecord | null> { return invoke('set_instance_tags', { instanceId, tags }) }
+export function assignInstanceGroup(instanceId: string, groupId?: string | null): Promise<InstanceRecord | null> { return invoke('assign_instance_group', { instanceId, groupId: groupId ?? null }) }
+export function upsertInstanceGroup(request: InstanceGroupUpsertRequest): Promise<InstanceGroupRecord> { return invoke('upsert_instance_group', { request }) }
+export function listPersistedInstanceGroups(): Promise<InstanceGroupRecord[]> { return invoke('list_persisted_instance_groups') }
+export function listPersistedInstanceGroupSummaries(): Promise<InstanceGroupSummary[]> { return invoke('list_persisted_instance_group_summaries') }
+export function deletePersistedInstanceGroup(groupId: string): Promise<void> { return invoke('delete_persisted_instance_group', { groupId }) }
 export function refreshAgentSource(): Promise<SourceRefreshResult> { return invoke('refresh_agent_source') }
 export function importAgentSource(request: SourceImportRequest): Promise<SourceRefreshResult> { return invoke('import_agent_source', { request }) }
 export function importAgentSourceFromDeepLink(url: string): Promise<SourceRefreshResult> { return invoke('import_agent_source_from_deeplink', { url }) }
