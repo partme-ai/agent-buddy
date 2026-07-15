@@ -69,13 +69,13 @@ pub fn ensure_schema(app_data_dir: &Path) -> anyhow::Result<Vec<SchemaMigrationR
     )?;
     record_migration(&conn, 1, "initial-local-state")?;
     record_migration(&conn, 2, "paas-bundle-cache-and-sync-writeback")?;
-    conn.pragma_update(None, "user_version", SCHEMA_VERSION)?;
+    conn.execute(&format!("pragma user_version = {SCHEMA_VERSION}"), [])?;
     list_schema_migrations_from_conn(&conn)
 }
 
 pub fn list_schema_migrations(app_data_dir: &Path) -> anyhow::Result<Vec<SchemaMigrationRecord>> {
-    let conn = open(app_data_dir)?;
     ensure_schema(app_data_dir)?;
+    let conn = open(app_data_dir)?;
     list_schema_migrations_from_conn(&conn)
 }
 
