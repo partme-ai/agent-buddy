@@ -32,7 +32,7 @@ export default function ProtocolRegistrationDock() {
 
   async function register() {
     await run('Registering agentbuddy:// protocol', async () => {
-      const result = await parseDeepLink('agentbuddy://register-protocol?execute=true')
+      const result = await parseDeepLink('agentbuddy://register-protocol?execute=true&confirm=true')
       setStatus(result)
       setMessage(result.params.registrationMessage ?? 'Protocol registration completed')
     })
@@ -59,7 +59,7 @@ export default function ProtocolRegistrationDock() {
       <pre>{params.registrationHandler ?? 'handler pending'}</pre>
       <div className="protocol-actions">
         <button disabled={busy} onClick={() => run('Checking protocol status', check)}>检查状态</button>
-        <button disabled={busy || registered} onClick={register}>注册协议</button>
+        <button disabled={busy || registered} onClick={register}>确认并注册协议</button>
       </div>
     </div>}
   </aside>
