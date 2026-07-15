@@ -75,11 +75,7 @@ use sync::{outbox_event, SyncOutboxEvent, SyncStatus};
 use sync_engine::SyncFlushPlan;
 use tauri::{Manager, State};
 
-struct AppState {
-    db: Arc<Database>,
-    app_data_dir: PathBuf,
-    daemon: Arc<local_daemon::LocalDaemonControl>,
-}
+struct AppState { db: Arc<Database>, app_data_dir: PathBuf, daemon: Arc<local_daemon::LocalDaemonControl> }
 
 #[tauri::command]
 fn load_settings(state: State<'_, AppState>) -> Result<AgentBuddySettings, String> { settings::load_settings(&state.app_data_dir).map_err(to_message) }
@@ -100,7 +96,7 @@ fn clear_paas_session(state: State<'_, AppState>) -> Result<(), String> { paas::
 #[tauri::command]
 fn execute_device_registration(state: State<'_, AppState>) -> Result<PaasHttpResult, String> { let settings = settings::load_settings(&state.app_data_dir).map_err(to_message)?; let result = paas::execute_device_registration(&state.app_data_dir, &settings).map_err(to_message)?; state.db.save_audit_event(&audit_event("paas.device.register", "paas", "device", None, AuditSeverity::Info, format!("device registration ok={} status={:?}", result.ok, result.status_code))).map_err(to_message)?; Ok(result) }
 #[tauri::command]
-fn pull_paas_bundles(state: State<'_, AppState>) -> Result<PaasHttpResult, String> { let settings = settings::load_settings(&state.app_data_dir).map_err(to_message)?; let workspace_id = paas::load_session(&state.app_data_dir).map_err(to_message)?.map(|session| session.workspace_id); let targets = RuntimeKind::all().into_iter().map(runtime::runtime_to_str).map(str::to_string).collect(); let result = paas::execute_bundle_pull(&state.app_data_dir, &settings, targets).map_err(to_message)?; if result.ok { match local_store::cache_bundle_pull_response(&state.app_data_dir, workspace_id, &result.response_preview) { Ok(entries) => { state.db.save_audit_event(&audit_event("paas.bundle.cache", "paas_bundle_cache", "batch", None, AuditSeverity::Info, format!("cached {} PaaS bundle(s)", entries.len()))).map_err(to_message)?; }, Err(error) => { state.db.save_audit_event(&audit_event("paas.bundle.cache.failed", "paas_bundle_cache", "batch", None, AuditSeverity::Warn, format!("PaaS bundle response was not cached: {error}"))).map_err(to_message)?; } } } state.db.save_audit_event(&audit_event("paas.bundle.pull", "paas", "bundles", None, AuditSeverity::Info, format!("bundle pull ok={} status={:?}", result.ok, result.status_code))).map_err(to_message)?; Ok(result) }
+fn pull_paas_bundles(state: State<'_, AppState>) -> Result<PaasHttpResult, String> { let settings = settings::load_settings(&state.app_data_dir).map_err(to_message)?; let workspace_id = paas::load_session(&state.app_data_dir).map_err(to_message)?.map(|session| session.workspace_id); let targets = RuntimeKind::all().into_iter().map(runtime::runtime_to_str).map(str::to_string).collect(); let result = paas::execute_bundle_pull(&state.app_data_dir, &settings, targets).map_err(to_message)?; if result.ok { match local_store::cache_bundle_pull_response(&state.app_data_dir, workspace_id, &result.response_body) { Ok(entries) => { state.db.save_audit_event(&audit_event("paas.bundle.cache", "paas_bundle_cache", "batch", None, AuditSeverity::Info, format!("cached {} PaaS bundle(s)", entries.len()))).map_err(to_message)?; }, Err(error) => { state.db.save_audit_event(&audit_event("paas.bundle.cache.failed", "paas_bundle_cache", "batch", None, AuditSeverity::Warn, format!("PaaS bundle response was not cached: {error}"))).map_err(to_message)?; } } } state.db.save_audit_event(&audit_event("paas.bundle.pull", "paas", "bundles", None, AuditSeverity::Info, format!("bundle pull ok={} status={:?}", result.ok, result.status_code))).map_err(to_message)?; Ok(result) }
 #[tauri::command]
 fn push_sync_outbox(state: State<'_, AppState>) -> Result<PaasHttpResult, String> { let settings = settings::load_settings(&state.app_data_dir).map_err(to_message)?; let events = state.db.list_sync_outbox().map_err(to_message)?.into_iter().filter(|event| matches!(event.status, SyncStatus::Pending | SyncStatus::Failed)).collect::<Vec<_>>(); let event_ids = events.iter().map(|event| event.id.clone()).collect::<Vec<_>>(); let result = paas::execute_sync_push(&state.app_data_dir, &settings, events).map_err(to_message)?; let writeback = local_store::update_sync_outbox_after_push(&state.app_data_dir, &event_ids, result.ok).map_err(to_message)?; state.db.save_audit_event(&audit_event("paas.sync.push", "sync_outbox", "batch", None, AuditSeverity::Info, format!("sync push ok={} status={:?}; writeback status={} updated={}/{}", result.ok, result.status_code, writeback.status, writeback.updated, writeback.requested))).map_err(to_message)?; Ok(result) }
 #[tauri::command]
@@ -109,6 +105,10 @@ fn preview_paas_sync(state: State<'_, AppState>) -> Result<PaasSyncPreview, Stri
 fn list_schema_migrations(state: State<'_, AppState>) -> Result<Vec<local_store::SchemaMigrationRecord>, String> { local_store::list_schema_migrations(&state.app_data_dir).map_err(to_message) }
 #[tauri::command]
 fn list_paas_bundle_cache(state: State<'_, AppState>) -> Result<Vec<local_store::PaasBundleCacheEntry>, String> { local_store::list_paas_bundle_cache(&state.app_data_dir).map_err(to_message) }
+#[tauri::command]
+fn get_paas_bundle_cache_entry(bundle_id: String, version: String, state: State<'_, AppState>) -> Result<Option<local_store::PaasBundleCacheEntry>, String> { local_store::get_paas_bundle_cache_entry(&state.app_data_dir, &bundle_id, &version).map_err(to_message) }
+#[tauri::command]
+fn build_cached_paas_bundle(bundle_id: String, version: String, state: State<'_, AppState>) -> Result<AgentBundle, String> { local_store::build_cached_paas_bundle(&state.app_data_dir, &bundle_id, &version).map_err(to_message) }
 #[tauri::command]
 fn build_sync_flush_plan(state: State<'_, AppState>) -> Result<SyncFlushPlan, String> { let settings = settings::load_settings(&state.app_data_dir).map_err(to_message)?; let events = state.db.list_sync_outbox().map_err(to_message)?; Ok(sync_engine::build_flush_plan(&settings, &events)) }
 #[tauri::command]
@@ -317,13 +317,13 @@ pub fn run() {
             load_settings, save_settings, get_paas_connection_status, get_paas_connection_info,
             preview_device_registration, preview_bundle_pull_request, create_paas_session,
             clear_paas_session, execute_device_registration, pull_paas_bundles, push_sync_outbox,
-            preview_paas_sync, list_schema_migrations, list_paas_bundle_cache, build_sync_flush_plan,
-            get_overview_dashboard, get_health_board, list_console_instances, list_console_instance_groups,
-            preview_retention_cleanup_plan, execute_retention_cleanup, preview_local_daemon_plan,
-            start_local_daemon, stop_local_daemon, get_local_daemon_status, upsert_instance,
-            list_persisted_instances, delete_persisted_instance, set_instance_tags, assign_instance_group,
-            upsert_instance_group, list_persisted_instance_groups, list_persisted_instance_group_summaries,
-            delete_persisted_instance_group, refresh_agent_source, import_agent_source,
+            preview_paas_sync, list_schema_migrations, list_paas_bundle_cache, get_paas_bundle_cache_entry,
+            build_cached_paas_bundle, build_sync_flush_plan, get_overview_dashboard, get_health_board,
+            list_console_instances, list_console_instance_groups, preview_retention_cleanup_plan,
+            execute_retention_cleanup, preview_local_daemon_plan, start_local_daemon, stop_local_daemon,
+            get_local_daemon_status, upsert_instance, list_persisted_instances, delete_persisted_instance,
+            set_instance_tags, assign_instance_group, upsert_instance_group, list_persisted_instance_groups,
+            list_persisted_instance_group_summaries, delete_persisted_instance_group, refresh_agent_source, import_agent_source,
             import_agent_source_from_deeplink, preview_source_import_risk, refresh_agent_source_by_id,
             list_agent_sources, get_agent_source_detail, get_agent_markdown, preview_agent_runtime_conversion,
             list_bundle_catalog, build_local_source_bundle, build_source_bundle_diff, list_agents,
