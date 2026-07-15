@@ -28,6 +28,7 @@ mod risk;
 mod runtime;
 mod runtime_adapters;
 mod runtime_config;
+mod runtime_execution;
 mod runtime_status;
 mod session;
 mod session_scanner;
@@ -56,7 +57,7 @@ use lifecycle::LifecyclePlan;
 use local_api::LocalApiSpec;
 use marketplace::{MarketplaceSource, McpInstallPlan, McpInstallRequest, SkillInstallPlan, SkillInstallRequest};
 use mcp_config::McpConfigPlan;
-use memory::{MemoryCandidate, MemoryItem};
+use memory::{MemoryCandidate, MemoryItem, MemoryStatus};
 use memory_sync::{MemoryInitPlan, MemoryWritebackPlan};
 use paas::{BundlePullRequest, DeviceRegistrationRequest, PaasBundleSummary, PaasConnectionInfo, PaasConnectionStatus, PaasHttpResult, PaasLoginRequest, PaasSession, PaasSyncPreview};
 use risk::RiskScanReport;
@@ -73,38 +74,126 @@ use sync::{outbox_event, SyncOutboxEvent, SyncStatus};
 use sync_engine::SyncFlushPlan;
 use tauri::{Manager, State};
 
-struct AppState { db: Arc<Database>, app_data_dir: PathBuf, daemon: Arc<local_daemon::LocalDaemonControl> }
+struct AppState {
+    db: Arc<Database>,
+    app_data_dir: PathBuf,
+    daemon: Arc<local_daemon::LocalDaemonControl>,
+}
 
 #[tauri::command]
-fn load_settings(state: State<'_, AppState>) -> Result<AgentBuddySettings, String> { settings::load_settings(&state.app_data_dir).map_err(to_message) }
+fn load_settings(state: State<'_, AppState>) -> Result<AgentBuddySettings, String> {
+    settings::load_settings(&state.app_data_dir).map_err(to_message)
+}
+
 #[tauri::command]
-fn save_settings(settings: AgentBuddySettings, state: State<'_, AppState>) -> Result<AgentBuddySettings, String> { settings::save_settings(&state.app_data_dir, &settings).map_err(to_message)?; state.db.save_audit_event(&audit_event("settings.save", "settings", "local", None, AuditSeverity::Info, "saved local settings")).map_err(to_message)?; Ok(settings) }
+fn save_settings(settings: AgentBuddySettings, state: State<'_, AppState>) -> Result<AgentBuddySettings, String> {
+    settings::save_settings(&state.app_data_dir, &settings).map_err(to_message)?;
+    state.db.save_audit_event(&audit_event("settings.save", "settings", "local", None, AuditSeverity::Info, "saved local settings")).map_err(to_message)?;
+    Ok(settings)
+}
+
 #[tauri::command]
-fn get_paas_connection_status(state: State<'_, AppState>) -> Result<PaasConnectionStatus, String> { let settings = settings::load_settings(&state.app_data_dir).map_err(to_message)?; let session = paas::load_session(&state.app_data_dir).map_err(to_message)?; Ok(paas::connection_status(settings.paas_base_url, session)) }
+fn get_paas_connection_status(state: State<'_, AppState>) -> Result<PaasConnectionStatus, String> {
+    let settings = settings::load_settings(&state.app_data_dir).map_err(to_message)?;
+    let session = paas::load_session(&state.app_data_dir).map_err(to_message)?;
+    Ok(paas::connection_status(settings.paas_base_url, session))
+}
+
 #[tauri::command]
-fn get_paas_connection_info(state: State<'_, AppState>) -> Result<PaasConnectionInfo, String> { let settings = settings::load_settings(&state.app_data_dir).map_err(to_message)?; Ok(paas::connection_info(&settings)) }
+fn get_paas_connection_info(state: State<'_, AppState>) -> Result<PaasConnectionInfo, String> {
+    let settings = settings::load_settings(&state.app_data_dir).map_err(to_message)?;
+    Ok(paas::connection_info(&settings))
+}
+
 #[tauri::command]
-fn preview_device_registration(state: State<'_, AppState>) -> Result<DeviceRegistrationRequest, String> { let settings = settings::load_settings(&state.app_data_dir).map_err(to_message)?; Ok(paas::device_registration_request(&settings)) }
+fn preview_device_registration(state: State<'_, AppState>) -> Result<DeviceRegistrationRequest, String> {
+    let settings = settings::load_settings(&state.app_data_dir).map_err(to_message)?;
+    Ok(paas::device_registration_request(&settings))
+}
+
 #[tauri::command]
-fn preview_bundle_pull_request(state: State<'_, AppState>) -> Result<BundlePullRequest, String> { let settings = settings::load_settings(&state.app_data_dir).map_err(to_message)?; let targets = RuntimeKind::all().into_iter().map(runtime::runtime_to_str).map(str::to_string).collect(); Ok(paas::bundle_pull_request(&settings, targets)) }
+fn preview_bundle_pull_request(state: State<'_, AppState>) -> Result<BundlePullRequest, String> {
+    let settings = settings::load_settings(&state.app_data_dir).map_err(to_message)?;
+    let targets = RuntimeKind::all().into_iter().map(runtime::runtime_to_str).map(str::to_string).collect();
+    Ok(paas::bundle_pull_request(&settings, targets))
+}
+
 #[tauri::command]
-fn create_paas_session(request: PaasLoginRequest, state: State<'_, AppState>) -> Result<PaasSession, String> { let session = paas::save_session(&state.app_data_dir, request).map_err(to_message)?; state.db.save_audit_event(&audit_event("paas.session.create", "paas_session", &session.id, None, AuditSeverity::Info, "stored local PaaS session")).map_err(to_message)?; Ok(session) }
+fn create_paas_session(request: PaasLoginRequest, state: State<'_, AppState>) -> Result<PaasSession, String> {
+    let session = paas::save_session(&state.app_data_dir, request).map_err(to_message)?;
+    state.db.save_audit_event(&audit_event("paas.session.create", "paas_session", &session.id, None, AuditSeverity::Info, "stored local PaaS session")).map_err(to_message)?;
+    Ok(session)
+}
+
 #[tauri::command]
-fn clear_paas_session(state: State<'_, AppState>) -> Result<(), String> { paas::clear_session(&state.app_data_dir).map_err(to_message)?; state.db.save_audit_event(&audit_event("paas.session.clear", "paas_session", "local", None, AuditSeverity::Warn, "cleared local PaaS session")).map_err(to_message)?; Ok(()) }
+fn clear_paas_session(state: State<'_, AppState>) -> Result<(), String> {
+    paas::clear_session(&state.app_data_dir).map_err(to_message)?;
+    state.db.save_audit_event(&audit_event("paas.session.clear", "paas_session", "local", None, AuditSeverity::Warn, "cleared local PaaS session")).map_err(to_message)?;
+    Ok(())
+}
+
 #[tauri::command]
-fn execute_device_registration(state: State<'_, AppState>) -> Result<PaasHttpResult, String> { let settings = settings::load_settings(&state.app_data_dir).map_err(to_message)?; let result = paas::execute_device_registration(&state.app_data_dir, &settings).map_err(to_message)?; state.db.save_audit_event(&audit_event("paas.device.register", "paas", "device", None, AuditSeverity::Info, format!("device registration ok={} status={:?}", result.ok, result.status_code))).map_err(to_message)?; Ok(result) }
+fn execute_device_registration(state: State<'_, AppState>) -> Result<PaasHttpResult, String> {
+    let settings = settings::load_settings(&state.app_data_dir).map_err(to_message)?;
+    let result = paas::execute_device_registration(&state.app_data_dir, &settings).map_err(to_message)?;
+    state.db.save_audit_event(&audit_event("paas.device.register", "paas", "device", None, AuditSeverity::Info, format!("device registration ok={} status={:?}", result.ok, result.status_code))).map_err(to_message)?;
+    Ok(result)
+}
+
 #[tauri::command]
-fn pull_paas_bundles(state: State<'_, AppState>) -> Result<PaasHttpResult, String> { let settings = settings::load_settings(&state.app_data_dir).map_err(to_message)?; let targets = RuntimeKind::all().into_iter().map(runtime::runtime_to_str).map(str::to_string).collect(); let result = paas::execute_bundle_pull(&state.app_data_dir, &settings, targets).map_err(to_message)?; state.db.save_audit_event(&audit_event("paas.bundle.pull", "paas", "bundles", None, AuditSeverity::Info, format!("bundle pull ok={} status={:?}", result.ok, result.status_code))).map_err(to_message)?; Ok(result) }
+fn pull_paas_bundles(state: State<'_, AppState>) -> Result<PaasHttpResult, String> {
+    let settings = settings::load_settings(&state.app_data_dir).map_err(to_message)?;
+    let targets = RuntimeKind::all().into_iter().map(runtime::runtime_to_str).map(str::to_string).collect();
+    let result = paas::execute_bundle_pull(&state.app_data_dir, &settings, targets).map_err(to_message)?;
+    state.db.save_audit_event(&audit_event("paas.bundle.pull", "paas", "bundles", None, AuditSeverity::Info, format!("bundle pull ok={} status={:?}", result.ok, result.status_code))).map_err(to_message)?;
+    Ok(result)
+}
+
 #[tauri::command]
-fn push_sync_outbox(state: State<'_, AppState>) -> Result<PaasHttpResult, String> { let settings = settings::load_settings(&state.app_data_dir).map_err(to_message)?; let events = state.db.list_sync_outbox().map_err(to_message)?.into_iter().filter(|event| matches!(event.status, SyncStatus::Pending | SyncStatus::Failed)).collect::<Vec<_>>(); let result = paas::execute_sync_push(&state.app_data_dir, &settings, events).map_err(to_message)?; state.db.save_audit_event(&audit_event("paas.sync.push", "sync_outbox", "batch", None, AuditSeverity::Info, format!("sync push ok={} status={:?}", result.ok, result.status_code))).map_err(to_message)?; Ok(result) }
+fn push_sync_outbox(state: State<'_, AppState>) -> Result<PaasHttpResult, String> {
+    let settings = settings::load_settings(&state.app_data_dir).map_err(to_message)?;
+    let events = state.db.list_sync_outbox().map_err(to_message)?.into_iter().filter(|event| matches!(event.status, SyncStatus::Pending | SyncStatus::Failed)).collect::<Vec<_>>();
+    let result = paas::execute_sync_push(&state.app_data_dir, &settings, events).map_err(to_message)?;
+    state.db.save_audit_event(&audit_event("paas.sync.push", "sync_outbox", "batch", None, AuditSeverity::Info, format!("sync push ok={} status={:?}", result.ok, result.status_code))).map_err(to_message)?;
+    Ok(result)
+}
+
 #[tauri::command]
-fn preview_paas_sync(state: State<'_, AppState>) -> Result<PaasSyncPreview, String> { let settings = settings::load_settings(&state.app_data_dir).map_err(to_message)?; let events = state.db.list_sync_outbox().map_err(to_message)?.into_iter().map(|event| event.event_type).collect(); Ok(paas::preview_sync(settings.paas_base_url, events)) }
+fn preview_paas_sync(state: State<'_, AppState>) -> Result<PaasSyncPreview, String> {
+    let settings = settings::load_settings(&state.app_data_dir).map_err(to_message)?;
+    let events = state.db.list_sync_outbox().map_err(to_message)?.into_iter().map(|event| event.event_type).collect();
+    Ok(paas::preview_sync(settings.paas_base_url, events))
+}
+
 #[tauri::command]
-fn build_sync_flush_plan(state: State<'_, AppState>) -> Result<SyncFlushPlan, String> { let settings = settings::load_settings(&state.app_data_dir).map_err(to_message)?; let events = state.db.list_sync_outbox().map_err(to_message)?; Ok(sync_engine::build_flush_plan(&settings, &events)) }
+fn build_sync_flush_plan(state: State<'_, AppState>) -> Result<SyncFlushPlan, String> {
+    let settings = settings::load_settings(&state.app_data_dir).map_err(to_message)?;
+    let events = state.db.list_sync_outbox().map_err(to_message)?;
+    Ok(sync_engine::build_flush_plan(&settings, &events))
+}
+
 #[tauri::command]
-fn get_overview_dashboard(state: State<'_, AppState>) -> Result<console_core::ConsoleOverviewDashboard, String> { let settings = settings::load_settings(&state.app_data_dir).map_err(to_message)?; let runtimes = adapters::detect_all(); let installations = state.db.list_installations().map_err(to_message)?; let agents_count = source::list_agents(&state.app_data_dir).map_err(to_message)?.len(); let sessions = state.db.list_session_events().map_err(to_message)?; let sync_events = state.db.list_sync_outbox().map_err(to_message)?; let audits = state.db.list_audit_events().map_err(to_message)?; Ok(console_core::build_overview_dashboard(&settings, runtimes, installations, agents_count, sessions, sync_events, audits)) }
+fn get_overview_dashboard(state: State<'_, AppState>) -> Result<console_core::ConsoleOverviewDashboard, String> {
+    let settings = settings::load_settings(&state.app_data_dir).map_err(to_message)?;
+    let runtimes = adapters::detect_all();
+    let installations = state.db.list_installations().map_err(to_message)?;
+    let agents_count = source::list_agents(&state.app_data_dir).map_err(to_message)?.len();
+    let sessions = state.db.list_session_events().map_err(to_message)?;
+    let sync_events = state.db.list_sync_outbox().map_err(to_message)?;
+    let audits = state.db.list_audit_events().map_err(to_message)?;
+    Ok(console_core::build_overview_dashboard(&settings, runtimes, installations, agents_count, sessions, sync_events, audits))
+}
+
 #[tauri::command]
-fn get_health_board(state: State<'_, AppState>) -> Result<console_core::ConsoleHealthBoard, String> { let doctor = doctor::run_doctor(&state.app_data_dir); let runtimes = adapters::detect_all(); let audits = state.db.list_audit_events().map_err(to_message)?; let installs = state.db.list_install_events().map_err(to_message)?; let sync_events = state.db.list_sync_outbox().map_err(to_message)?; Ok(console_core::build_health_board(doctor, runtimes, audits, installs, sync_events)) }
+fn get_health_board(state: State<'_, AppState>) -> Result<console_core::ConsoleHealthBoard, String> {
+    let doctor = doctor::run_doctor(&state.app_data_dir);
+    let runtimes = adapters::detect_all();
+    let audits = state.db.list_audit_events().map_err(to_message)?;
+    let installs = state.db.list_install_events().map_err(to_message)?;
+    let sync_events = state.db.list_sync_outbox().map_err(to_message)?;
+    Ok(console_core::build_health_board(doctor, runtimes, audits, installs, sync_events))
+}
+
 #[tauri::command]
 fn list_console_instances(state: State<'_, AppState>) -> Result<Vec<console_core::ConsoleInstance>, String> { build_console_instances_from_state(&state) }
 #[tauri::command]
@@ -121,6 +210,7 @@ fn start_local_daemon(state: State<'_, AppState>) -> Result<local_daemon::LocalD
 fn stop_local_daemon(state: State<'_, AppState>) -> Result<local_daemon::LocalDaemonStopResult, String> { let result = state.daemon.stop(); state.db.save_audit_event(&audit_event("local_daemon.stop", "local_daemon", "agent-buddy", None, AuditSeverity::Warn, result.message.clone())).map_err(to_message)?; Ok(result) }
 #[tauri::command]
 fn get_local_daemon_status(state: State<'_, AppState>) -> Result<local_daemon::LocalDaemonStatus, String> { Ok(state.daemon.status()) }
+
 #[tauri::command]
 fn upsert_instance(request: InstanceUpsertRequest, state: State<'_, AppState>) -> Result<InstanceRecord, String> { let record = instance::new_instance(request); state.db.save_instance(&record).map_err(to_message)?; state.db.save_audit_event(&audit_event("instance.upsert", "instance", &record.id, record.runtime, AuditSeverity::Info, "saved console instance")).map_err(to_message)?; Ok(record) }
 #[tauri::command]
@@ -139,6 +229,7 @@ fn list_persisted_instance_groups(state: State<'_, AppState>) -> Result<Vec<Inst
 fn list_persisted_instance_group_summaries(state: State<'_, AppState>) -> Result<Vec<InstanceGroupSummary>, String> { state.db.list_instance_group_summaries().map_err(to_message) }
 #[tauri::command]
 fn delete_persisted_instance_group(group_id: String, state: State<'_, AppState>) -> Result<(), String> { state.db.delete_instance_group(&group_id).map_err(to_message)?; state.db.save_audit_event(&audit_event("instance_group.delete", "instance_group", group_id, None, AuditSeverity::Warn, "deleted console instance group")).map_err(to_message)?; Ok(()) }
+
 #[tauri::command]
 fn refresh_agent_source(state: State<'_, AppState>) -> Result<SourceRefreshResult, String> { let result = source::refresh_source(&state.app_data_dir).map_err(to_message)?; state.db.save_source_refresh(&result).map_err(to_message)?; state.db.save_audit_event(&audit_event("source.refresh", "agent_source", &result.source_id, None, AuditSeverity::Info, "refreshed default agent source")).map_err(to_message)?; Ok(result) }
 #[tauri::command]
@@ -231,6 +322,7 @@ fn repair_installation_plan(installation_id: String, state: State<'_, AppState>)
 fn uninstall_installation_plan(installation_id: String, state: State<'_, AppState>) -> Result<LifecyclePlan, String> { let installation = state.db.get_installation(&installation_id).map_err(to_message)?.ok_or_else(|| format!("installation not found: {installation_id}"))?; Ok(lifecycle::uninstall_plan(&installation)) }
 #[tauri::command]
 fn upgrade_installation_plan(runtime: RuntimeKind, installation_id: Option<String>) -> Result<LifecyclePlan, String> { Ok(lifecycle::upgrade_plan(runtime, installation_id)) }
+
 #[tauri::command]
 fn initialize_default_knowledge_spaces(state: State<'_, AppState>) -> Result<Vec<KnowledgeSpace>, String> { let spaces = knowledge::default_local_spaces(); for space in &spaces { state.db.save_knowledge_space(space).map_err(to_message)?; } Ok(spaces) }
 #[tauri::command]
@@ -246,6 +338,9 @@ fn build_rag_mirror_plan(space_id: String, state: State<'_, AppState>) -> Result
 #[tauri::command]
 fn build_knowledge_context_pack(query: String, space_ids: Vec<String>) -> Result<KnowledgeContextPack, String> { Ok(knowledge_package::build_context_pack(query, space_ids)) }
 #[tauri::command]
+fn search_knowledge_runtime(query: String, space_ids: Vec<String>, state: State<'_, AppState>) -> Result<runtime_execution::KnowledgeRuntimeSearchResult, String> { let spaces = state.db.list_knowledge_spaces().map_err(to_message)?; let snapshots = state.db.list_knowledge_snapshots().map_err(to_message)?; Ok(runtime_execution::search_knowledge_runtime(query, space_ids, spaces, snapshots, &state.app_data_dir)) }
+
+#[tauri::command]
 fn list_memory_items(state: State<'_, AppState>) -> Result<Vec<MemoryItem>, String> { state.db.list_memory_items().map_err(to_message) }
 #[tauri::command]
 fn list_memory_candidates(state: State<'_, AppState>) -> Result<Vec<MemoryCandidate>, String> { state.db.list_memory_candidates().map_err(to_message) }
@@ -258,6 +353,17 @@ fn build_memory_init_plan(scopes: Vec<String>) -> Result<MemoryInitPlan, String>
 #[tauri::command]
 fn build_memory_writeback_plan(state: State<'_, AppState>) -> Result<MemoryWritebackPlan, String> { let candidates = state.db.list_memory_candidates().map_err(to_message)?; let items = state.db.list_memory_items().map_err(to_message)?; Ok(memory_sync::build_writeback_plan(candidates, items)) }
 #[tauri::command]
+fn search_memory_runtime(query: String, state: State<'_, AppState>) -> Result<runtime_execution::MemoryRuntimeSearchResult, String> { let items = state.db.list_memory_items().map_err(to_message)?; let candidates = state.db.list_memory_candidates().map_err(to_message)?; Ok(runtime_execution::search_memory_runtime(query, items, candidates)) }
+#[tauri::command]
+fn update_memory_item(item_id: String, title: Option<String>, content: Option<String>, state: State<'_, AppState>) -> Result<MemoryItem, String> { let item = state.db.list_memory_items().map_err(to_message)?.into_iter().find(|item| item.id == item_id).ok_or_else(|| format!("memory item not found: {item_id}"))?; let updated = runtime_execution::update_memory_item(item, title, content); state.db.save_memory_item(&updated).map_err(to_message)?; state.db.save_audit_event(&audit_event("memory.item.update", "memory_item", &updated.id, None, AuditSeverity::Info, "updated memory item")).map_err(to_message)?; Ok(updated) }
+#[tauri::command]
+fn archive_memory_item(item_id: String, state: State<'_, AppState>) -> Result<MemoryItem, String> { let item = state.db.list_memory_items().map_err(to_message)?.into_iter().find(|item| item.id == item_id).ok_or_else(|| format!("memory item not found: {item_id}"))?; let updated = runtime_execution::set_memory_item_status(item, MemoryStatus::Archived); state.db.save_memory_item(&updated).map_err(to_message)?; state.db.save_audit_event(&audit_event("memory.item.archive", "memory_item", &updated.id, None, AuditSeverity::Warn, "archived memory item")).map_err(to_message)?; Ok(updated) }
+#[tauri::command]
+fn delete_memory_item(item_id: String, state: State<'_, AppState>) -> Result<(), String> { state.db.delete_memory_item(&item_id).map_err(to_message)?; state.db.save_audit_event(&audit_event("memory.item.delete", "memory_item", item_id, None, AuditSeverity::Warn, "deleted memory item")).map_err(to_message)?; Ok(()) }
+#[tauri::command]
+fn reject_memory_candidate(candidate_id: String, state: State<'_, AppState>) -> Result<MemoryCandidate, String> { let candidate = state.db.list_memory_candidates().map_err(to_message)?.into_iter().find(|item| item.id == candidate_id).ok_or_else(|| format!("memory candidate not found: {candidate_id}"))?; let rejected = runtime_execution::set_memory_candidate_status(candidate, MemoryStatus::Rejected); state.db.save_memory_candidate(&rejected).map_err(to_message)?; state.db.save_audit_event(&audit_event("memory.candidate.reject", "memory_candidate", &rejected.id, None, AuditSeverity::Warn, "rejected memory candidate")).map_err(to_message)?; Ok(rejected) }
+
+#[tauri::command]
 fn append_session_event(session_id: String, runtime: Option<RuntimeKind>, event_type: String, payload_json: String, state: State<'_, AppState>) -> Result<SessionEvent, String> { let event = session::new_event(session_id, runtime, session::parse_event_type(&event_type), payload_json); state.db.save_session_event(&event).map_err(to_message)?; Ok(event) }
 #[tauri::command]
 fn list_session_events(state: State<'_, AppState>) -> Result<Vec<SessionEvent>, String> { state.db.list_session_events().map_err(to_message) }
@@ -267,6 +373,11 @@ fn list_handoff_packs(state: State<'_, AppState>) -> Result<Vec<HandoffPack>, St
 fn create_handoff_pack(session_id: String, from_runtime: Option<RuntimeKind>, to_runtime: Option<RuntimeKind>, goal: String, summary: String, state: State<'_, AppState>) -> Result<HandoffPack, String> { let handoff = session::new_handoff(session_id, from_runtime, to_runtime, goal, summary); state.db.save_handoff_pack(&handoff).map_err(to_message)?; state.db.save_audit_event(&audit_event("handoff.create", "handoff_pack", &handoff.id, from_runtime, AuditSeverity::Info, "created handoff pack")).map_err(to_message)?; Ok(handoff) }
 #[tauri::command]
 fn build_session_sync_plan(state: State<'_, AppState>) -> Result<SessionSyncPlan, String> { let settings = settings::load_settings(&state.app_data_dir).map_err(to_message)?; Ok(session_scanner::build_session_sync_plan(settings.sync_enabled)) }
+#[tauri::command]
+fn summarize_session_runtime(session_id: String, state: State<'_, AppState>) -> Result<runtime_execution::SessionRuntimeSummary, String> { let events = state.db.list_session_events().map_err(to_message)?; Ok(runtime_execution::summarize_session_runtime(session_id, events)) }
+#[tauri::command]
+fn scan_session_runtime(state: State<'_, AppState>) -> Result<runtime_execution::SessionRuntimeScan, String> { let settings = settings::load_settings(&state.app_data_dir).map_err(to_message)?; let plan = session_scanner::build_session_sync_plan(settings.sync_enabled); Ok(runtime_execution::scan_session_runtime(plan)) }
+
 #[tauri::command]
 fn restore_backup(backup_id: String, state: State<'_, AppState>) -> Result<(), String> { let backup = state.db.get_backup(&backup_id).map_err(to_message)?.ok_or_else(|| format!("backup not found: {backup_id}"))?; let event = installer::restore_backup(&backup).map_err(to_message)?; state.db.save_install_event(&event).map_err(to_message)?; state.db.save_audit_event(&audit_event("backup.restore", "install_backup", backup_id, Some(backup.runtime), AuditSeverity::Warn, "restored install backup")).map_err(to_message)?; Ok(()) }
 #[tauri::command]
@@ -311,10 +422,12 @@ pub fn run() {
             repair_installation_plan, uninstall_installation_plan, upgrade_installation_plan,
             initialize_default_knowledge_spaces, list_knowledge_spaces, list_knowledge_snapshots,
             create_knowledge_snapshot, build_wiki_mirror_plan, build_rag_mirror_plan,
-            build_knowledge_context_pack, list_memory_items, list_memory_candidates, propose_memory,
-            approve_memory_candidate, build_memory_init_plan, build_memory_writeback_plan,
+            build_knowledge_context_pack, search_knowledge_runtime, list_memory_items, list_memory_candidates,
+            propose_memory, approve_memory_candidate, build_memory_init_plan, build_memory_writeback_plan,
+            search_memory_runtime, update_memory_item, archive_memory_item, delete_memory_item, reject_memory_candidate,
             append_session_event, list_session_events, list_handoff_packs, create_handoff_pack,
-            build_session_sync_plan, restore_backup, uninstall_installation, run_doctor, parse_deeplink
+            build_session_sync_plan, summarize_session_runtime, scan_session_runtime,
+            restore_backup, uninstall_installation, run_doctor, parse_deeplink
         ])
         .run(tauri::generate_context!())
         .expect("error while running Agent Buddy");
