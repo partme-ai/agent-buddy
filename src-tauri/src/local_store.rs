@@ -1,3 +1,4 @@
+use crate::bundle::AgentBundle;
 use crate::paas::BundlePullResponse;
 use rusqlite::{params, Connection};
 use serde::{Deserialize, Serialize};
@@ -114,21 +115,21 @@ pub fn list_paas_bundle_cache(app_data_dir: &Path) -> anyhow::Result<Vec<PaasBun
     ensure_schema(app_data_dir)?;
     let conn = open(app_data_dir)?;
     let mut stmt = conn.prepare("select bundle_id, version, name, description, category, workspace_id, target_count, skill_count, mcp_count, knowledge_space_count, raw_json, cached_at from paas_bundle_cache order by cached_at desc, name asc")?;
-    let rows = stmt.query_map([], |row| Ok(PaasBundleCacheEntry {
-        bundle_id: row.get(0)?,
-        version: row.get(1)?,
-        name: row.get(2)?,
-        description: row.get(3)?,
-        category: row.get(4)?,
-        workspace_id: row.get(5)?,
-        target_count: row.get(6)?,
-        skill_count: row.get(7)?,
-        mcp_count: row.get(8)?,
-        knowledge_space_count: row.get(9)?,
-        raw_json: row.get(10)?,
-        cached_at: row.get(11)?,
-    }))?;
+    let rows = stmt.query_map([], map_paas_bundle_cache_row)?;
     Ok(rows.filter_map(Result::ok).collect())
+}
+
+pub fn get_paas_bundle_cache_entry(app_data_dir: &Path, bundle_id: &str, version: &str) -> anyhow::Result<Option<PaasBundleCacheEntry>> {
+    ensure_schema(app_data_dir)?;
+    let conn = open(app_data_dir)?;
+    let mut stmt = conn.prepare("select bundle_id, version, name, description, category, workspace_id, target_count, skill_count, mcp_count, knowledge_space_count, raw_json, cached_at from paas_bundle_cache where bundle_id = ?1 and version = ?2 limit 1")?;
+    let mut rows = stmt.query_map(params![bundle_id, version], map_paas_bundle_cache_row)?;
+    Ok(rows.find_map(Result::ok))
+}
+
+pub fn build_cached_paas_bundle(app_data_dir: &Path, bundle_id: &str, version: &str) -> anyhow::Result<AgentBundle> {
+    let entry = get_paas_bundle_cache_entry(app_data_dir, bundle_id, version)?.ok_or_else(|| anyhow::anyhow!("cached PaaS bundle not found: {bundle_id}@{version}"))?;
+    Ok(serde_json::from_str(&entry.raw_json)?)
 }
 
 pub fn update_sync_outbox_after_push(app_data_dir: &Path, event_ids: &[String], success: bool) -> anyhow::Result<SyncOutboxWritebackResult> {
@@ -147,6 +148,23 @@ pub fn update_sync_outbox_after_push(app_data_dir: &Path, event_ids: &[String], 
         updated += affected;
     }
     Ok(SyncOutboxWritebackResult { requested: event_ids.len(), updated, status: status.to_string(), event_ids: event_ids.to_vec() })
+}
+
+fn map_paas_bundle_cache_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<PaasBundleCacheEntry> {
+    Ok(PaasBundleCacheEntry {
+        bundle_id: row.get(0)?,
+        version: row.get(1)?,
+        name: row.get(2)?,
+        description: row.get(3)?,
+        category: row.get(4)?,
+        workspace_id: row.get(5)?,
+        target_count: row.get(6)?,
+        skill_count: row.get(7)?,
+        mcp_count: row.get(8)?,
+        knowledge_space_count: row.get(9)?,
+        raw_json: row.get(10)?,
+        cached_at: row.get(11)?,
+    })
 }
 
 fn record_migration(conn: &Connection, version: i64, name: &str) -> anyhow::Result<()> {
