@@ -1,0 +1,140 @@
+.runtime-exec-dock {
+  position: fixed;
+  left: 22px;
+  bottom: 22px;
+  z-index: 78;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.runtime-exec-toggle {
+  background: #312e81;
+  color: #fff;
+  border-radius: 999px;
+  padding: 11px 16px;
+  font-weight: 800;
+  box-shadow: 0 16px 40px rgba(49, 46, 129, .24);
+}
+
+.runtime-exec-panel {
+  width: min(560px, calc(100vw - 28px));
+  max-height: min(820px, calc(100vh - 96px));
+  overflow: auto;
+  padding: 16px;
+  border: 1px solid rgba(199,210,254,.95);
+  border-radius: 24px;
+  background: rgba(255,255,255,.96);
+  backdrop-filter: blur(18px);
+  box-shadow: 0 22px 60px rgba(49,46,129,.18);
+}
+
+.runtime-exec-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.runtime-exec-header strong {
+  color: #111827;
+}
+
+.runtime-exec-header span {
+  color: #64748b;
+  font-size: 12px;
+}
+
+.runtime-exec-section {
+  margin-top: 14px;
+  padding: 14px;
+  border: 1px solid rgba(224,231,255,.95);
+  border-radius: 18px;
+  background: linear-gradient(180deg, #fff, #eef2ff);
+}
+
+.runtime-exec-form {
+  display: grid;
+  gap: 8px;
+}
+
+.runtime-exec-form input,
+.runtime-exec-form textarea {
+  width: 100%;
+  border: 1px solid #c7d2fe;
+  border-radius: 12px;
+  padding: 9px 10px;
+  background: #fff;
+  color: #111827;
+}
+
+.runtime-exec-form textarea {
+  min-height: 74px;
+  resize: vertical;
+}
+
+.runtime-exec-section > button,
+.runtime-exec-actions button {
+  margin-top: 10px;
+  border-radius: 12px;
+  background: #eef2ff;
+  color: #3730a3;
+  padding: 9px 11px;
+  font-weight: 800;
+}
+
+.runtime-exec-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.runtime-exec-actions button:disabled,
+.runtime-exec-section > button:disabled {
+  opacity: .5;
+}
+
+.runtime-result {
+  margin-top: 10px;
+  display: grid;
+  gap: 8px;
+}
+
+.runtime-result article,
+.runtime-result p,
+.runtime-result em,
+.runtime-result span,
+.runtime-result small {
+  display: block;
+  margin: 0;
+}
+
+.runtime-result article {
+  padding: 10px;
+  border-radius: 14px;
+  background: #fff;
+  border: 1px solid rgba(199,210,254,.8);
+}
+
+.runtime-result p {
+  color: #475569;
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.runtime-result em {
+  padding: 8px 10px;
+  border-radius: 12px;
+  background: #fffbeb;
+  color: #92400e;
+  font-size: 12px;
+  font-style: normal;
+}
+
+@media (max-width: 900px) {
+  .runtime-exec-dock {
+    left: 14px;
+    bottom: 74px;
+  }
+}
