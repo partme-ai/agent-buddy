@@ -7,6 +7,7 @@ import './complete-console.css'
 import './instance-governance.css'
 import './paas-controls.css'
 import './protocol-registration.css'
+import './runtime-execution.css'
 
 ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
   <React.StrictMode>
