@@ -33,6 +33,23 @@ type SchemaMigrationRecord = {
   appliedAt: number
 }
 
+type CachedBundleInstallPlan = {
+  sourceId: string
+  totalAgents: number
+  totalFiles: number
+  targets: Array<{ runtime: string; filesToWrite: number; targetDirs: string[]; warnings: string[] }>
+  conflicts: Array<{ runtime: string; path: string; reason: string }>
+  warnings: string[]
+}
+
+type CachedBundleInstallResult = {
+  runtime: string
+  installedCount: number
+  targetPath: string
+  filesWritten: number
+  warnings: string[]
+}
+
 export default function PaaSControlsDock() {
   const [open, setOpen] = useState(false)
   const [busy, setBusy] = useState(false)
@@ -42,6 +59,8 @@ export default function PaaSControlsDock() {
   const [cache, setCache] = useState<PaasBundleCacheEntry[]>([])
   const [migrations, setMigrations] = useState<SchemaMigrationRecord[]>([])
   const [result, setResult] = useState<PaasHttpResult | null>(null)
+  const [bundlePlan, setBundlePlan] = useState<CachedBundleInstallPlan | null>(null)
+  const [installResults, setInstallResults] = useState<CachedBundleInstallResult[]>([])
   const [form, setForm] = useState<PaasLoginRequest>({ baseUrl: '', workspaceId: '', userId: '', accessToken: '' })
 
   useEffect(() => {
@@ -86,6 +105,8 @@ export default function PaaSControlsDock() {
     await run('Clearing PaaS session', async () => {
       await invoke('clear_paas_session')
       setResult(null)
+      setBundlePlan(null)
+      setInstallResults([])
       await refresh()
       setMessage('PaaS session cleared')
     })
@@ -95,6 +116,34 @@ export default function PaaSControlsDock() {
     await run(command, async () => {
       setResult(await invoke<PaasHttpResult>(command))
       await refresh()
+    })
+  }
+
+  async function previewLatestBundleInstall() {
+    if (!latestBundle) return
+    await run('Previewing cached PaaS bundle install plan', async () => {
+      const plan = await invoke<CachedBundleInstallPlan>('build_cached_paas_bundle_install_plan', {
+        bundleId: latestBundle.bundleId,
+        version: latestBundle.version,
+        targets: [],
+      })
+      setBundlePlan(plan)
+      setInstallResults([])
+      setMessage(`Install plan ready: ${plan.totalFiles} file(s)`)
+    })
+  }
+
+  async function installLatestBundle() {
+    if (!latestBundle) return
+    await run('Installing cached PaaS bundle', async () => {
+      const results = await invoke<CachedBundleInstallResult[]>('install_cached_paas_bundle', {
+        bundleId: latestBundle.bundleId,
+        version: latestBundle.version,
+        targets: [],
+      })
+      setInstallResults(results)
+      await refresh()
+      setMessage(`Installed cached bundle into ${results.length} runtime(s)`)
     })
   }
 
@@ -147,7 +196,22 @@ export default function PaaSControlsDock() {
         <strong>Bundle Cache / Schema</strong>
         <p>{latestBundle ? `${latestBundle.name} · ${latestBundle.version} · ${latestBundle.category}` : '暂无 PaaS Bundle 缓存。'}</p>
         <p>{latestMigration ? `Latest migration: ${latestMigration.name}` : 'Schema migration 尚未初始化。'}</p>
+        <div className="paas-actions">
+          <button disabled={busy || !latestBundle} onClick={previewLatestBundleInstall}>预览安装计划</button>
+          <button disabled={busy || !latestBundle} onClick={installLatestBundle}>安装最新缓存 Bundle</button>
+        </div>
       </section>
+
+      {bundlePlan && <section className="paas-section">
+        <strong>Cached Bundle Install Plan</strong>
+        <p>{bundlePlan.totalFiles} file(s), {bundlePlan.targets.length} runtime target(s), {bundlePlan.conflicts.length} conflict(s)</p>
+        {bundlePlan.warnings.length > 0 && <pre>{bundlePlan.warnings.join('\n')}</pre>}
+      </section>}
+
+      {installResults.length > 0 && <section className="paas-section">
+        <strong>Cached Bundle Install Result</strong>
+        <pre>{installResults.map((item) => `${item.runtime}: ${item.filesWritten} file(s) -> ${item.targetPath}`).join('\n')}</pre>
+      </section>}
 
       {result && <section className={result.ok ? 'paas-result ok' : 'paas-result error'}>
         <strong>{result.method} {result.statusCode ?? 'ERR'} · {result.ok ? 'OK' : 'FAILED'}</strong>
