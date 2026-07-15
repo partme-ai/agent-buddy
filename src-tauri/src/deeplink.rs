@@ -55,8 +55,12 @@ pub fn parse_deeplink(url: &str) -> anyhow::Result<DeepLinkRequest> {
     };
     let mut params = parse_query(query);
     if matches!(action, DeepLinkAction::RegisterProtocol) {
-        let result = if params.get("execute").is_some_and(|value| value == "true") {
+        let execute = params.get("execute").is_some_and(|value| value == "true");
+        let confirmed = params.get("confirm").is_some_and(|value| value == "true");
+        let result = if execute && confirmed {
             register_protocol_handler()
+        } else if execute {
+            protocol_registration_status().with_message("Protocol registration requires confirm=true to perform OS-level changes.")
         } else {
             protocol_registration_status()
         };
