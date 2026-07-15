@@ -74,7 +74,9 @@ Agent Buddy should first complete the local-first feature surface, then run vali
 | PaaS full response body retention | Written | PaaS HTTP results retain full response bodies for backend-only cache parsing while skipping that field in frontend serialization. |
 | PaaS bundle cache | Written | Bundle pull responses are parsed into `paas_bundle_cache`; cache and schema migration summaries are exposed in the PaaS controls dock. |
 | PaaS cached bundle reconstruction | Written | Added commands to read cached Bundle entries and reconstruct full `AgentBundle` values from cached raw JSON. |
-| PaaS controls dock | Written | Added `PaaSControlsDock.tsx` to save/clear sessions, register device, pull bundles, push sync outbox, and show bundle cache/schema state from the UI. |
+| PaaS cached bundle install plan | Written | Added installer support and command bridge to produce install plans directly from cached PaaS Bundles. |
+| PaaS cached bundle install execution | Written | Added install execution for cached PaaS Bundles with generated artifacts, backups, install records, audit events, and sync outbox records. |
+| PaaS controls dock | Written | Added `PaaSControlsDock.tsx` to save/clear sessions, register device, pull bundles, push sync outbox, show bundle cache/schema state, and preview/install latest cached bundle. |
 | Local API spec | Written | Local daemon route spec. |
 | Console backend aggregation | Written | Added `console_core.rs` and commands for overview dashboard, health board, console instances, instance groups, retention cleanup preview, cleanup execution, and local daemon plan. |
 | Retention cleanup preview | Written | Preview command identifies old generated artifacts and backups based on local retention settings. |
