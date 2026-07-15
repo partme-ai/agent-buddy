@@ -281,17 +281,18 @@ fn score_text(terms: &[String], text: &str) -> i64 {
 
 fn snippet(text: &str, terms: &[String]) -> String {
     let clean = text.replace('\n', " ").replace('\r', " ");
-    if clean.len() <= 280 {
+    if clean.chars().count() <= 280 {
         return clean;
     }
     if let Some(term) = terms.first() {
-        if let Some(index) = clean.to_lowercase().find(term) {
-            let start = index.saturating_sub(90);
-            let end = (index + 190).min(clean.len());
-            return clean[start..end].to_string();
+        let lower = clean.to_lowercase();
+        if let Some(byte_index) = lower.find(term) {
+            let term_char_index = lower[..byte_index].chars().count();
+            let start = term_char_index.saturating_sub(90);
+            return take_char_window(&clean, start, 280);
         }
     }
-    clean.chars().take(280).collect()
+    truncate_chars(&clean, 280)
 }
 
 fn resolve_manifest_path(app_data_dir: &Path, value: &str) -> Option<PathBuf> {
@@ -304,5 +305,17 @@ fn resolve_manifest_path(app_data_dir: &Path, value: &str) -> Option<PathBuf> {
 
 fn trim_payload(payload: &str) -> String {
     let compact = payload.replace('\n', " ").replace('\r', " ");
-    if compact.len() > 160 { format!("{}…", compact.chars().take(160).collect::<String>()) } else { compact }
+    truncate_chars(&compact, 160)
+}
+
+fn take_char_window(value: &str, start: usize, limit: usize) -> String {
+    let mut chars = value.chars().skip(start);
+    let preview = chars.by_ref().take(limit).collect::<String>();
+    if chars.next().is_some() { format!("{preview}…") } else { preview }
+}
+
+fn truncate_chars(value: &str, limit: usize) -> String {
+    let mut chars = value.chars();
+    let preview = chars.by_ref().take(limit).collect::<String>();
+    if chars.next().is_some() { format!("{preview}…") } else { preview }
 }
