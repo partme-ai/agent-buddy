@@ -134,6 +134,8 @@ pub struct PaasHttpResult {
     pub sent_at: i64,
     pub request_body_preview: String,
     pub response_preview: String,
+    #[serde(skip_serializing, default)]
+    pub response_body: String,
     pub error: Option<String>,
 }
 
@@ -273,7 +275,7 @@ fn post_json<T: Serialize>(endpoint: &str, access_token: &str, body: &T) -> anyh
     let sent_at = chrono::Utc::now().timestamp();
     let body_string = serde_json::to_string(body)?;
     if endpoint.trim().is_empty() {
-        return Ok(PaasHttpResult { endpoint: endpoint.to_string(), method: "POST".to_string(), ok: false, status_code: None, sent_at, request_body_preview: truncate_chars(&body_string, 2_000), response_preview: String::new(), error: Some("PaaS endpoint is empty".to_string()) });
+        return Ok(PaasHttpResult { endpoint: endpoint.to_string(), method: "POST".to_string(), ok: false, status_code: None, sent_at, request_body_preview: truncate_chars(&body_string, 2_000), response_preview: String::new(), response_body: String::new(), error: Some("PaaS endpoint is empty".to_string()) });
     }
     let agent = ureq::AgentBuilder::new()
         .timeout_connect(Duration::from_secs(HTTP_TIMEOUT_SECONDS))
@@ -289,13 +291,13 @@ fn post_json<T: Serialize>(endpoint: &str, access_token: &str, body: &T) -> anyh
         Ok(response) => {
             let status = response.status();
             let text = response.into_string().unwrap_or_default();
-            Ok(PaasHttpResult { endpoint: endpoint.to_string(), method: "POST".to_string(), ok: (200..300).contains(&status), status_code: Some(status), sent_at, request_body_preview: truncate_chars(&body_string, 2_000), response_preview: truncate_chars(&text, 2_000), error: None })
+            Ok(PaasHttpResult { endpoint: endpoint.to_string(), method: "POST".to_string(), ok: (200..300).contains(&status), status_code: Some(status), sent_at, request_body_preview: truncate_chars(&body_string, 2_000), response_preview: truncate_chars(&text, 2_000), response_body: text, error: None })
         }
         Err(ureq::Error::Status(status, response)) => {
             let text = response.into_string().unwrap_or_default();
-            Ok(PaasHttpResult { endpoint: endpoint.to_string(), method: "POST".to_string(), ok: false, status_code: Some(status), sent_at, request_body_preview: truncate_chars(&body_string, 2_000), response_preview: truncate_chars(&text, 2_000), error: Some(format!("HTTP status {status}")) })
+            Ok(PaasHttpResult { endpoint: endpoint.to_string(), method: "POST".to_string(), ok: false, status_code: Some(status), sent_at, request_body_preview: truncate_chars(&body_string, 2_000), response_preview: truncate_chars(&text, 2_000), response_body: text, error: Some(format!("HTTP status {status}")) })
         }
-        Err(ureq::Error::Transport(error)) => Ok(PaasHttpResult { endpoint: endpoint.to_string(), method: "POST".to_string(), ok: false, status_code: None, sent_at, request_body_preview: truncate_chars(&body_string, 2_000), response_preview: error.to_string(), error: Some(error.to_string()) }),
+        Err(ureq::Error::Transport(error)) => Ok(PaasHttpResult { endpoint: endpoint.to_string(), method: "POST".to_string(), ok: false, status_code: None, sent_at, request_body_preview: truncate_chars(&body_string, 2_000), response_preview: error.to_string(), response_body: String::new(), error: Some(error.to_string()) }),
     }
 }
 
