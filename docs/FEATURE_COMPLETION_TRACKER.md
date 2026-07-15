@@ -71,7 +71,9 @@ Agent Buddy should first complete the local-first feature surface, then run vali
 | PaaS session file hardening | Written | PaaS session writes now use a private-file helper and restrict file permissions to the current user on Unix-like platforms. |
 | PaaS HTTP execution | Written | Added authenticated POST execution for device registration, bundle pull, and sync outbox push through `ureq`. |
 | PaaS HTTP timeout / UTF-8 preview hardening | Written | PaaS HTTP calls use connection/read/write timeouts and character-safe preview truncation. |
+| PaaS full response body retention | Written | PaaS HTTP results retain full response bodies for backend-only cache parsing while skipping that field in frontend serialization. |
 | PaaS bundle cache | Written | Bundle pull responses are parsed into `paas_bundle_cache`; cache and schema migration summaries are exposed in the PaaS controls dock. |
+| PaaS cached bundle reconstruction | Written | Added commands to read cached Bundle entries and reconstruct full `AgentBundle` values from cached raw JSON. |
 | PaaS controls dock | Written | Added `PaaSControlsDock.tsx` to save/clear sessions, register device, pull bundles, push sync outbox, and show bundle cache/schema state from the UI. |
 | Local API spec | Written | Local daemon route spec. |
 | Console backend aggregation | Written | Added `console_core.rs` and commands for overview dashboard, health board, console instances, instance groups, retention cleanup preview, cleanup execution, and local daemon plan. |
