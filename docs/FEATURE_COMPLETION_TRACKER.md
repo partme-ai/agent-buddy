@@ -66,7 +66,9 @@ Agent Buddy should first complete the local-first feature surface, then run vali
 | Sync debounce plan | Written | Flush plan, grouping, retry/debounce policy. |
 | PaaS protocol preview | Written | Connection info, device registration, bundle pull, sync preview. |
 | PaaS session persistence | Written | `paas-session.json` stores the local PaaS session and token hint while keeping the token out of UI payloads. |
+| PaaS session file hardening | Written | PaaS session writes now use a private-file helper and restrict file permissions to the current user on Unix-like platforms. |
 | PaaS HTTP execution | Written | Added authenticated POST execution for device registration, bundle pull, and sync outbox push through `ureq`. |
+| PaaS HTTP timeout / UTF-8 preview hardening | Written | PaaS HTTP calls use connection/read/write timeouts and character-safe preview truncation. |
 | PaaS controls dock | Written | Added `PaaSControlsDock.tsx` to save/clear sessions, register device, pull bundles, and push sync outbox from the UI. |
 | Local API spec | Written | Local daemon route spec. |
 | Console backend aggregation | Written | Added `console_core.rs` and commands for overview dashboard, health board, console instances, instance groups, retention cleanup preview, cleanup execution, and local daemon plan. |
@@ -78,8 +80,8 @@ Agent Buddy should first complete the local-first feature surface, then run vali
 | Approval flow | Written | Approval request/resolve models. |
 | Lifecycle plans | Written | Repair, uninstall, upgrade plan stubs. |
 | Deep Link install-source | Written | `agentbuddy://install-source?url=...` can parse and execute source import. |
-| Platform Deep Link registration | Written | `agentbuddy://register-protocol` checks protocol status; `agentbuddy://register-protocol?execute=true` performs Windows HKCU registration or Linux desktop/mimeapps registration; macOS reports bundle requirements. |
-| Protocol registration UI | Written | Added `ProtocolRegistrationDock.tsx` and styles to check/register the local protocol handler from the UI. |
+| Platform Deep Link registration | Written | `agentbuddy://register-protocol` checks protocol status; OS-level changes require both `execute=true` and `confirm=true`. |
+| Protocol registration UI | Written | Added `ProtocolRegistrationDock.tsx` and styles; the UI now labels the destructive action as confirm-and-register. |
 | Full Agent Console menu | Written | Left navigation now covers Overview, Instances, Agents, Knowledge, Wiki, Memory, Sessions, and Settings. |
 | Complete final-menu ConsoleApp | Written | Added `src/ConsoleAppComplete.tsx` and switched `src/App.tsx` to this full page matrix. |
 | Refined Console layout layer | Written | Added `src/layout.css` with sticky topbar, responsive behavior, right-rail-ready layouts, table/card density, and workbench primitives. |
