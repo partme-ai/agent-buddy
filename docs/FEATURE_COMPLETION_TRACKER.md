@@ -53,10 +53,14 @@ Agent Buddy should first complete the local-first feature surface, then run vali
 | Generated artifacts browser | Written | List/read generated artifacts. |
 | Risk scanner | Written | Text and generated artifact scan; marketplace and source import plans now include risk report. |
 | Memory center | Written | Candidate and item model, propose/approve flow. |
+| Memory runtime operations | Written | Added runtime search, edit, archive, delete, and candidate rejection commands with audit trail. |
 | Knowledge mirror metadata | Written | Spaces and snapshots. |
 | Knowledge package plan | Written | Mirror/context pack models exist. |
+| Knowledge runtime search | Written | Added runtime search over knowledge spaces and snapshot manifests with scored hits and warnings. |
 | Session event center | Written | Events, handoff packs. |
 | Session scanner | Written | All 18 runtimes included with support levels. |
+| Session runtime summary / scan | Written | Added local session summary and runtime scanner execution commands. |
+| Runtime execution dock | Written | Added `RuntimeExecutionDock.tsx` and styles for Knowledge / Memory / Session runtime operations. |
 | Audit center | Written | Audit event model and persistence. |
 | Sync outbox | Written | Outbox model and pending event creation. |
 | Sync debounce plan | Written | Flush plan, grouping, retry/debounce policy. |
@@ -82,6 +86,7 @@ Agent Buddy should first complete the local-first feature surface, then run vali
 | Final menu page completion styles | Written | Added `src/complete-console.css` for page-specific density, cards, timelines, tables, settings forms, operational dock, and inspector drawer. |
 | Instance governance styles | Written | Added `src/instance-governance.css` for backend/persisted instance overlay controls. |
 | Protocol registration styles | Written | Added `src/protocol-registration.css` for the protocol registration dock. |
+| Runtime execution styles | Written | Added `src/runtime-execution.css` for Knowledge / Memory / Session runtime controls. |
 | Overview Dashboard | Written | Aggregates metrics, global health score, runtime strip, sync flush plan, and recent events. |
 | Health Board | Written | Displays Agent Doctor, risks, recent tasks, sync failures, and runtime health table. |
 | Instance Console | Written | Derived instances cover runtime, agent installation, MCP, knowledge, memory, sessions, and local API. |
@@ -100,5 +105,4 @@ Agent Buddy should first complete the local-first feature surface, then run vali
 
 ## Next coding pass
 
-1. Add Knowledge/Memory/Session runtime execution depth beyond metadata/plans.
-2. Then run validation.
+1. Run build/typecheck/Tauri validation and fix compile/runtime errors.
