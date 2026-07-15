@@ -1,4 +1,5 @@
 use crate::adapters::{self, GeneratedFile};
+use crate::bundle::AgentBundle;
 use crate::domain::LocalAgent;
 use crate::runtime::{
     runtime_to_str, AgentInstallation, InstallBackup, InstallConflict, InstallEvent, InstallPlan,
@@ -59,6 +60,63 @@ pub fn build_install_plan(
     Ok(InstallPlan {
         source_id: "agency-agents-zh".to_string(),
         total_agents: agents.len(),
+        total_files,
+        targets: runtime_plans,
+        conflicts,
+        warnings,
+    })
+}
+
+pub fn build_bundle_install_plan(
+    bundle: &AgentBundle,
+    targets: &[InstallTarget],
+    _app_data_dir: &Path,
+) -> anyhow::Result<InstallPlan> {
+    let resolved_targets = resolve_bundle_targets(bundle, targets);
+    let mut runtime_plans = Vec::new();
+    let mut conflicts = Vec::new();
+    let mut warnings = Vec::new();
+    let mut total_files = 0usize;
+
+    if resolved_targets.is_empty() {
+        warnings.push("Cached bundle has no installable runtime targets. Provide explicit targets or update the PaaS bundle.".to_string());
+    }
+
+    for target in &resolved_targets {
+        let target_dirs = adapters::target_dirs(target)?;
+        let files = generate_bundle_files(bundle, target);
+        total_files += files.len() * target_dirs.len();
+        let mut target_warnings = warnings_for(target.runtime, 1, &target.category_filters);
+        if !bundle.targets.contains(&target.runtime) {
+            target_warnings.push("Target runtime was explicitly selected but is not declared in the cached bundle target list.".to_string());
+        }
+        warnings.extend(target_warnings.clone());
+        for dir in &target_dirs {
+            for file in &files {
+                let dest = safe_join(dir, &file.relative_path)?;
+                if dest.exists() {
+                    conflicts.push(InstallConflict {
+                        runtime: target.runtime,
+                        path: dest.display().to_string(),
+                        reason: "target file already exists; it will be backed up before overwrite".to_string(),
+                    });
+                }
+            }
+        }
+        runtime_plans.push(RuntimeInstallPlan {
+            runtime: target.runtime,
+            scope: target.runtime.scope(),
+            target_dirs: target_dirs.iter().map(|p| p.display().to_string()).collect(),
+            files_to_write: files.len() * target_dirs.len(),
+            agents_to_install: 1,
+            post_actions: post_actions_for(target.runtime),
+            warnings: target_warnings,
+        });
+    }
+
+    Ok(InstallPlan {
+        source_id: bundle.source.source_id.clone(),
+        total_agents: 1,
         total_files,
         targets: runtime_plans,
         conflicts,
@@ -153,6 +211,95 @@ pub fn install_target(
     })
 }
 
+pub fn install_bundle_target(
+    bundle: &AgentBundle,
+    target: &InstallTarget,
+    app_data_dir: &Path,
+) -> anyhow::Result<InstallOutcome> {
+    let install_id = Uuid::new_v4().to_string();
+    let started_at = Utc::now().timestamp();
+    let files = generate_bundle_files(bundle, target);
+    let target_dirs = adapters::target_dirs(target)?;
+    let backup_root = app_data_dir.join("installations").join("backups").join(&install_id);
+    let generated_root = generated_root(app_data_dir, started_at, target.runtime);
+    fs::create_dir_all(&backup_root)?;
+    fs::create_dir_all(&generated_root)?;
+
+    let mut backups = Vec::new();
+    let mut written = Vec::new();
+    let mut events = vec![event(None, Some(target.runtime), "info", format!("starting cached PaaS bundle install {}@{}", bundle.bundle_id, bundle.version))];
+
+    let result = (|| -> anyhow::Result<()> {
+        cache_generated_artifacts(&generated_root, &files)?;
+        events.push(event(None, Some(target.runtime), "info", format!("cached generated artifacts at {}", generated_root.display())));
+        for dir in &target_dirs {
+            fs::create_dir_all(dir)?;
+            for file in &files {
+                let dest = safe_join(dir, &file.relative_path)?;
+                if let Some(parent) = dest.parent() {
+                    fs::create_dir_all(parent)?;
+                }
+                if dest.exists() {
+                    let backup_path = safe_join(&backup_root, &backup_relative_path(dir, &dest)?)?;
+                    if let Some(parent) = backup_path.parent() {
+                        fs::create_dir_all(parent)?;
+                    }
+                    fs::copy(&dest, &backup_path)?;
+                    backups.push(InstallBackup {
+                        id: Uuid::new_v4().to_string(),
+                        installation_id: install_id.clone(),
+                        runtime: target.runtime,
+                        original_path: dest.display().to_string(),
+                        backup_path: backup_path.display().to_string(),
+                        created_at: Utc::now().timestamp(),
+                    });
+                }
+                write_atomic(&dest, &file.content)?;
+                written.push(dest.display().to_string());
+            }
+        }
+        if target.runtime == RuntimeKind::OpenClaw {
+            events.push(event(None, Some(target.runtime), "warn", "cached PaaS Bundle wrote OpenClaw workspace files; native registration still requires OpenClaw gateway integration"));
+        }
+        Ok(())
+    })();
+
+    if let Err(error) = result {
+        rollback_written_files(&written, &backups, &mut events);
+        events.push(event(Some(install_id.clone()), Some(target.runtime), "error", format!("cached PaaS bundle install failed: {error}")));
+        return Err(error);
+    }
+
+    let target_path = target_dirs.iter().map(|p| p.display().to_string()).collect::<Vec<_>>().join(";");
+    let record = AgentInstallation {
+        id: install_id.clone(),
+        source_id: bundle.source.source_id.clone(),
+        agent_id: bundle.bundle_id.clone(),
+        runtime: target.runtime,
+        scope: target.runtime.scope(),
+        project_dir: target.project_dir.clone(),
+        target_path: target_path.clone(),
+        installed_files: written.clone(),
+        source_commit: Some(bundle.version.clone()),
+        installed_at: started_at,
+        status: "installed".to_string(),
+    };
+    events.push(event(Some(install_id), Some(target.runtime), "info", format!("installed cached PaaS bundle with {} file(s)", written.len())));
+
+    Ok(InstallOutcome {
+        result: InstallResult {
+            runtime: target.runtime,
+            installed_count: 1,
+            target_path,
+            files_written: written.len(),
+            warnings: warnings_for(target.runtime, 1, &target.category_filters),
+        },
+        records: vec![record],
+        backups,
+        events,
+    })
+}
+
 pub fn remove_installation(record: &AgentInstallation) -> anyhow::Result<()> {
     for file in &record.installed_files {
         let path = PathBuf::from(file);
@@ -183,6 +330,101 @@ pub fn restore_backup(backup: &InstallBackup) -> anyhow::Result<InstallEvent> {
         "info",
         format!("restored backup {} -> {}", backup.backup_path, backup.original_path),
     ))
+}
+
+fn resolve_bundle_targets(bundle: &AgentBundle, explicit_targets: &[InstallTarget]) -> Vec<InstallTarget> {
+    if !explicit_targets.is_empty() {
+        return explicit_targets.to_vec();
+    }
+    bundle
+        .targets
+        .iter()
+        .copied()
+        .map(|runtime| InstallTarget { runtime, project_dir: None, custom_dir: None, category_filters: Vec::new() })
+        .collect()
+}
+
+fn generate_bundle_files(bundle: &AgentBundle, target: &InstallTarget) -> Vec<GeneratedFile> {
+    let slug = bundle_slug(bundle);
+    let content = bundle_markdown(bundle, target.runtime);
+    let relative_path = match target.runtime {
+        RuntimeKind::Cursor => format!("{slug}.mdc"),
+        RuntimeKind::OpenClaw => format!("{slug}/agent.md"),
+        RuntimeKind::GeminiCli | RuntimeKind::Antigravity | RuntimeKind::WorkBuddy | RuntimeKind::CodeWhale | RuntimeKind::Hermes | RuntimeKind::Kiro => format!("{slug}/SKILL.md"),
+        RuntimeKind::Codex => format!("{slug}.md"),
+        _ => format!("{slug}.md"),
+    };
+    vec![GeneratedFile { relative_path, content }]
+}
+
+fn bundle_markdown(bundle: &AgentBundle, runtime: RuntimeKind) -> String {
+    let mut out = String::new();
+    out.push_str("---\n");
+    out.push_str(&format!("id: {}\n", bundle.bundle_id));
+    out.push_str(&format!("version: {}\n", bundle.version));
+    out.push_str(&format!("runtime: {}\n", runtime_to_str(runtime)));
+    out.push_str(&format!("category: {}\n", bundle.profile.category));
+    out.push_str("source: agent-paas-cache\n");
+    out.push_str("---\n\n");
+    out.push_str(&format!("# {}\n\n", bundle.profile.name));
+    if !bundle.profile.description.trim().is_empty() {
+        out.push_str(&format!("{}\n\n", bundle.profile.description));
+    }
+    if !bundle.instructions.role.trim().is_empty() {
+        out.push_str("## Role\n\n");
+        out.push_str(&bundle.instructions.role);
+        out.push_str("\n\n");
+    }
+    if !bundle.instructions.body.trim().is_empty() {
+        out.push_str("## Instructions\n\n");
+        out.push_str(&bundle.instructions.body);
+        out.push_str("\n\n");
+    }
+    if !bundle.instructions.rules.is_empty() {
+        out.push_str("## Rules\n\n");
+        for rule in &bundle.instructions.rules {
+            out.push_str(&format!("- {}\n", rule));
+        }
+        out.push('\n');
+    }
+    if !bundle.skills.is_empty() {
+        out.push_str("## Skills\n\n");
+        for skill in &bundle.skills {
+            out.push_str(&format!("- {} ({})\n", skill.id, skill.source));
+        }
+        out.push('\n');
+    }
+    if !bundle.mcp_servers.is_empty() {
+        out.push_str("## MCP Servers\n\n");
+        for server in &bundle.mcp_servers {
+            out.push_str(&format!("- {}{}\n", server.id, if server.required { " required" } else { "" }));
+        }
+        out.push('\n');
+    }
+    out.push_str("## Permissions\n\n");
+    out.push_str(&format!("- file_write: {}\n", bundle.permissions.file_write));
+    out.push_str(&format!("- network: {}\n", bundle.permissions.network));
+    out.push_str(&format!("- shell: {}\n", bundle.permissions.shell));
+    out.push_str(&format!("- external_publish: {}\n", bundle.permissions.external_publish));
+    out
+}
+
+fn bundle_slug(bundle: &AgentBundle) -> String {
+    bundle
+        .metadata
+        .get("slug")
+        .cloned()
+        .unwrap_or_else(|| sanitize_slug(&bundle.bundle_id))
+}
+
+fn sanitize_slug(value: &str) -> String {
+    let slug = value
+        .chars()
+        .map(|ch| if ch.is_ascii_alphanumeric() || ch == '-' || ch == '_' { ch.to_ascii_lowercase() } else { '-' })
+        .collect::<String>()
+        .trim_matches('-')
+        .to_string();
+    if slug.is_empty() { "paas-bundle".to_string() } else { slug }
 }
 
 fn cache_generated_artifacts(root: &Path, files: &[GeneratedFile]) -> anyhow::Result<()> {
