@@ -13,12 +13,34 @@ type PaasHttpResult = {
   error?: string | null
 }
 
+type PaasBundleCacheEntry = {
+  bundleId: string
+  version: string
+  name: string
+  description: string
+  category: string
+  workspaceId?: string | null
+  targetCount: number
+  skillCount: number
+  mcpCount: number
+  knowledgeSpaceCount: number
+  cachedAt: number
+}
+
+type SchemaMigrationRecord = {
+  version: number
+  name: string
+  appliedAt: number
+}
+
 export default function PaaSControlsDock() {
   const [open, setOpen] = useState(false)
   const [busy, setBusy] = useState(false)
   const [message, setMessage] = useState('Ready')
   const [status, setStatus] = useState<PaasConnectionStatus | null>(null)
   const [preview, setPreview] = useState<PaasSyncPreview | null>(null)
+  const [cache, setCache] = useState<PaasBundleCacheEntry[]>([])
+  const [migrations, setMigrations] = useState<SchemaMigrationRecord[]>([])
   const [result, setResult] = useState<PaasHttpResult | null>(null)
   const [form, setForm] = useState<PaasLoginRequest>({ baseUrl: '', workspaceId: '', userId: '', accessToken: '' })
 
@@ -39,12 +61,16 @@ export default function PaaSControlsDock() {
   }
 
   async function refresh() {
-    const [nextStatus, nextPreview] = await Promise.all([
+    const [nextStatus, nextPreview, nextCache, nextMigrations] = await Promise.all([
       invoke<PaasConnectionStatus>('get_paas_connection_status').catch(() => null),
       invoke<PaasSyncPreview>('preview_paas_sync').catch(() => null),
+      invoke<PaasBundleCacheEntry[]>('list_paas_bundle_cache').catch(() => []),
+      invoke<SchemaMigrationRecord[]>('list_schema_migrations').catch(() => []),
     ])
     setStatus(nextStatus)
     setPreview(nextPreview)
+    setCache(nextCache)
+    setMigrations(nextMigrations)
     if (nextStatus?.baseUrl && !form.baseUrl) setForm((current) => ({ ...current, baseUrl: nextStatus.baseUrl }))
   }
 
@@ -72,6 +98,9 @@ export default function PaaSControlsDock() {
     })
   }
 
+  const latestBundle = cache[0]
+  const latestMigration = migrations[migrations.length - 1]
+
   return <aside className={open ? 'paas-dock open' : 'paas-dock'}>
     <button className="paas-dock-toggle" onClick={() => setOpen(!open)}>{open ? '关闭 PaaS' : 'PaaS 同步'}</button>
     {open && <div className="paas-dock-panel">
@@ -86,6 +115,8 @@ export default function PaaSControlsDock() {
           <Metric label="Configured" value={status?.configured ? 'yes' : 'no'} />
           <Metric label="Auth" value={status?.authenticated ? 'yes' : 'no'} />
           <Metric label="Pending" value={String(preview?.pendingEvents ?? 0)} />
+          <Metric label="Cached" value={String(cache.length)} />
+          <Metric label="Schema" value={latestMigration ? `v${latestMigration.version}` : '-'} />
         </div>
         <p>{status?.message ?? 'No status loaded.'}</p>
         <button disabled={busy} onClick={() => run('Refreshing PaaS status', refresh)}>刷新</button>
@@ -110,6 +141,12 @@ export default function PaaSControlsDock() {
           <button disabled={busy || !status?.authenticated} onClick={() => execute('pull_paas_bundles')}>拉取 Bundles</button>
           <button disabled={busy || !status?.authenticated} onClick={() => execute('push_sync_outbox')}>推送 Outbox</button>
         </div>
+      </section>
+
+      <section className="paas-section">
+        <strong>Bundle Cache / Schema</strong>
+        <p>{latestBundle ? `${latestBundle.name} · ${latestBundle.version} · ${latestBundle.category}` : '暂无 PaaS Bundle 缓存。'}</p>
+        <p>{latestMigration ? `Latest migration: ${latestMigration.name}` : 'Schema migration 尚未初始化。'}</p>
       </section>
 
       {result && <section className={result.ok ? 'paas-result ok' : 'paas-result error'}>
