@@ -4,9 +4,11 @@ use crate::settings::AgentBuddySettings;
 use crate::sync::SyncOutboxEvent;
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
+use std::time::Duration;
 use uuid::Uuid;
 
 const PAAS_SESSION_FILE: &str = "paas-session.json";
+const HTTP_TIMEOUT_SECONDS: u64 = 15;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -170,7 +172,7 @@ pub fn connection_status(base_url: String, session: Option<PaasSession>) -> Paas
             base_url: session.base_url,
             workspace_id: Some(session.workspace_id),
             user_id: Some(session.user_id),
-            message: "PaaS session is stored locally and can execute authenticated requests.".to_string(),
+            message: "PaaS session is stored locally and can execute authenticated requests. Token file is restricted to the current user on Unix-like platforms.".to_string(),
         },
         None => PaasConnectionStatus { configured: !base_url.trim().is_empty(), authenticated: false, base_url, workspace_id: None, user_id: None, message: "No PaaS session is stored locally.".to_string() },
     }
@@ -188,7 +190,7 @@ pub fn save_session(app_data_dir: &Path, request: PaasLoginRequest) -> anyhow::R
     let session = create_session(request);
     let stored = StoredPaasSession { session: session.clone(), access_token };
     let content = serde_json::to_string_pretty(&stored)?;
-    std::fs::write(session_file(app_data_dir), content)?;
+    write_private_file(&session_file(app_data_dir), &content)?;
     Ok(session)
 }
 
@@ -271,9 +273,15 @@ fn post_json<T: Serialize>(endpoint: &str, access_token: &str, body: &T) -> anyh
     let sent_at = chrono::Utc::now().timestamp();
     let body_string = serde_json::to_string(body)?;
     if endpoint.trim().is_empty() {
-        return Ok(PaasHttpResult { endpoint: endpoint.to_string(), method: "POST".to_string(), ok: false, status_code: None, sent_at, request_body_preview: truncate(&body_string), response_preview: String::new(), error: Some("PaaS endpoint is empty".to_string()) });
+        return Ok(PaasHttpResult { endpoint: endpoint.to_string(), method: "POST".to_string(), ok: false, status_code: None, sent_at, request_body_preview: truncate_chars(&body_string, 2_000), response_preview: String::new(), error: Some("PaaS endpoint is empty".to_string()) });
     }
-    let response = ureq::post(endpoint)
+    let agent = ureq::AgentBuilder::new()
+        .timeout_connect(Duration::from_secs(HTTP_TIMEOUT_SECONDS))
+        .timeout_read(Duration::from_secs(HTTP_TIMEOUT_SECONDS))
+        .timeout_write(Duration::from_secs(HTTP_TIMEOUT_SECONDS))
+        .build();
+    let response = agent
+        .post(endpoint)
         .set("Authorization", &format!("Bearer {access_token}"))
         .set("Content-Type", "application/json")
         .send_string(&body_string);
@@ -281,9 +289,13 @@ fn post_json<T: Serialize>(endpoint: &str, access_token: &str, body: &T) -> anyh
         Ok(response) => {
             let status = response.status();
             let text = response.into_string().unwrap_or_default();
-            Ok(PaasHttpResult { endpoint: endpoint.to_string(), method: "POST".to_string(), ok: (200..300).contains(&status), status_code: Some(status), sent_at, request_body_preview: truncate(&body_string), response_preview: truncate(&text), error: None })
+            Ok(PaasHttpResult { endpoint: endpoint.to_string(), method: "POST".to_string(), ok: (200..300).contains(&status), status_code: Some(status), sent_at, request_body_preview: truncate_chars(&body_string, 2_000), response_preview: truncate_chars(&text, 2_000), error: None })
         }
-        Err(error) => Ok(PaasHttpResult { endpoint: endpoint.to_string(), method: "POST".to_string(), ok: false, status_code: error.status(), sent_at, request_body_preview: truncate(&body_string), response_preview: error.to_string(), error: Some(error.to_string()) }),
+        Err(ureq::Error::Status(status, response)) => {
+            let text = response.into_string().unwrap_or_default();
+            Ok(PaasHttpResult { endpoint: endpoint.to_string(), method: "POST".to_string(), ok: false, status_code: Some(status), sent_at, request_body_preview: truncate_chars(&body_string, 2_000), response_preview: truncate_chars(&text, 2_000), error: Some(format!("HTTP status {status}")) })
+        }
+        Err(ureq::Error::Transport(error)) => Ok(PaasHttpResult { endpoint: endpoint.to_string(), method: "POST".to_string(), ok: false, status_code: None, sent_at, request_body_preview: truncate_chars(&body_string, 2_000), response_preview: error.to_string(), error: Some(error.to_string()) }),
     }
 }
 
@@ -300,11 +312,36 @@ fn require_stored_session(app_data_dir: &Path) -> anyhow::Result<StoredPaasSessi
 
 fn session_file(app_data_dir: &Path) -> PathBuf { app_data_dir.join(PAAS_SESSION_FILE) }
 
-fn token_hint(access_token: &str) -> String {
-    if access_token.len() <= 8 { "***".to_string() } else { format!("{}…{}", &access_token[..4], &access_token[access_token.len() - 4..]) }
+fn write_private_file(path: &Path, content: &str) -> anyhow::Result<()> {
+    std::fs::write(path, content)?;
+    restrict_file_permissions(path)?;
+    Ok(())
 }
 
-fn truncate(value: &str) -> String {
-    const LIMIT: usize = 2_000;
-    if value.len() <= LIMIT { value.to_string() } else { format!("{}…", &value[..LIMIT]) }
+#[cfg(unix)]
+fn restrict_file_permissions(path: &Path) -> anyhow::Result<()> {
+    use std::os::unix::fs::PermissionsExt;
+    let permissions = std::fs::Permissions::from_mode(0o600);
+    std::fs::set_permissions(path, permissions)?;
+    Ok(())
+}
+
+#[cfg(not(unix))]
+fn restrict_file_permissions(_path: &Path) -> anyhow::Result<()> { Ok(()) }
+
+fn token_hint(access_token: &str) -> String {
+    let chars = access_token.chars().collect::<Vec<_>>();
+    if chars.len() <= 8 {
+        "***".to_string()
+    } else {
+        let prefix = chars.iter().take(4).collect::<String>();
+        let suffix = chars.iter().rev().take(4).collect::<Vec<_>>().into_iter().rev().collect::<String>();
+        format!("{prefix}…{suffix}")
+    }
+}
+
+fn truncate_chars(value: &str, limit: usize) -> String {
+    let mut chars = value.chars();
+    let preview = chars.by_ref().take(limit).collect::<String>();
+    if chars.next().is_some() { format!("{preview}…") } else { preview }
 }
