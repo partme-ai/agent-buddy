@@ -12,6 +12,7 @@ Agent Buddy should first complete the local-first feature surface, then run vali
 |---|---:|---|
 | Tauri / React / Rust shell | Written | Desktop shell and command bridge exist. |
 | SQLite local state | Written | Sources, detections, installs, backups, events, audit, sync, memory, knowledge, session, persistent console instances/groups/tags. |
+| SQLite schema migrations | Written | Added `schema_migrations`, `pragma user_version`, and startup migration initialization through `local_store.rs`. |
 | 18 Runtime registry | Written | Covers the full `agency-agents-zh` target list. |
 | 18 Runtime adapter manifest | Written | Detect methods, install targets, generated formats, integration methods and support levels are declared. |
 | 18 per-runtime adapter files | Written | Added physical files under `src-tauri/src/runtime_adapters/`; descriptor modules exist for all supported runtimes. |
@@ -63,13 +64,15 @@ Agent Buddy should first complete the local-first feature surface, then run vali
 | Runtime execution dock | Written | Added `RuntimeExecutionDock.tsx` and styles for Knowledge / Memory / Session runtime operations. |
 | Audit center | Written | Audit event model and persistence. |
 | Sync outbox | Written | Outbox model and pending event creation. |
+| Sync outbox status writeback | Written | `push_sync_outbox` now writes sent/failed status back to SQLite and increments retry count on failed pushes. |
 | Sync debounce plan | Written | Flush plan, grouping, retry/debounce policy. |
 | PaaS protocol preview | Written | Connection info, device registration, bundle pull, sync preview. |
 | PaaS session persistence | Written | `paas-session.json` stores the local PaaS session and token hint while keeping the token out of UI payloads. |
 | PaaS session file hardening | Written | PaaS session writes now use a private-file helper and restrict file permissions to the current user on Unix-like platforms. |
 | PaaS HTTP execution | Written | Added authenticated POST execution for device registration, bundle pull, and sync outbox push through `ureq`. |
 | PaaS HTTP timeout / UTF-8 preview hardening | Written | PaaS HTTP calls use connection/read/write timeouts and character-safe preview truncation. |
-| PaaS controls dock | Written | Added `PaaSControlsDock.tsx` to save/clear sessions, register device, pull bundles, and push sync outbox from the UI. |
+| PaaS bundle cache | Written | Bundle pull responses are parsed into `paas_bundle_cache`; cache and schema migration summaries are exposed in the PaaS controls dock. |
+| PaaS controls dock | Written | Added `PaaSControlsDock.tsx` to save/clear sessions, register device, pull bundles, push sync outbox, and show bundle cache/schema state from the UI. |
 | Local API spec | Written | Local daemon route spec. |
 | Console backend aggregation | Written | Added `console_core.rs` and commands for overview dashboard, health board, console instances, instance groups, retention cleanup preview, cleanup execution, and local daemon plan. |
 | Retention cleanup preview | Written | Preview command identifies old generated artifacts and backups based on local retention settings. |
