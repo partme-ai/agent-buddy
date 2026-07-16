@@ -50,6 +50,38 @@ type CachedBundleInstallResult = {
   warnings: string[]
 }
 
+type InstallTarget = {
+  runtime: string
+  projectDir?: string | null
+  customDir?: string | null
+  categoryFilters: string[]
+}
+
+const RUNTIME_OPTIONS = [
+  ['auto', 'Auto from Bundle'],
+  ['claude-code', 'Claude Code'],
+  ['copilot', 'GitHub Copilot'],
+  ['antigravity', 'Antigravity'],
+  ['gemini-cli', 'Gemini CLI'],
+  ['opencode', 'OpenCode'],
+  ['openclaw', 'OpenClaw'],
+  ['cursor', 'Cursor'],
+  ['trae', 'TRAE'],
+  ['aider', 'Aider'],
+  ['windsurf', 'Windsurf'],
+  ['qwen', 'Qwen Code'],
+  ['codex', 'Codex CLI'],
+  ['deerflow', 'DeerFlow'],
+  ['workbuddy', 'WorkBuddy'],
+  ['codewhale', 'CodeWhale'],
+  ['hermes', 'Hermes Agent'],
+  ['kiro', 'Kiro'],
+  ['qoder', 'Qoder'],
+]
+
+const PROJECT_RUNTIMES = new Set(['opencode', 'cursor', 'trae', 'aider', 'windsurf', 'qwen', 'codex', 'qoder'])
+const CUSTOM_RUNTIMES = new Set(['deerflow'])
+
 export default function PaaSControlsDock() {
   const [open, setOpen] = useState(false)
   const [busy, setBusy] = useState(false)
@@ -61,6 +93,9 @@ export default function PaaSControlsDock() {
   const [result, setResult] = useState<PaasHttpResult | null>(null)
   const [bundlePlan, setBundlePlan] = useState<CachedBundleInstallPlan | null>(null)
   const [installResults, setInstallResults] = useState<CachedBundleInstallResult[]>([])
+  const [targetRuntime, setTargetRuntime] = useState('auto')
+  const [projectDir, setProjectDir] = useState('')
+  const [customDir, setCustomDir] = useState('')
   const [form, setForm] = useState<PaasLoginRequest>({ baseUrl: '', workspaceId: '', userId: '', accessToken: '' })
 
   useEffect(() => {
@@ -119,13 +154,23 @@ export default function PaaSControlsDock() {
     })
   }
 
+  function selectedTargets(): InstallTarget[] {
+    if (targetRuntime === 'auto') return []
+    return [{
+      runtime: targetRuntime,
+      projectDir: projectDir.trim() || null,
+      customDir: customDir.trim() || null,
+      categoryFilters: [],
+    }]
+  }
+
   async function previewLatestBundleInstall() {
     if (!latestBundle) return
     await run('Previewing cached PaaS bundle install plan', async () => {
       const plan = await invoke<CachedBundleInstallPlan>('build_cached_paas_bundle_install_plan', {
         bundleId: latestBundle.bundleId,
         version: latestBundle.version,
-        targets: [],
+        targets: selectedTargets(),
       })
       setBundlePlan(plan)
       setInstallResults([])
@@ -139,7 +184,7 @@ export default function PaaSControlsDock() {
       const results = await invoke<CachedBundleInstallResult[]>('install_cached_paas_bundle', {
         bundleId: latestBundle.bundleId,
         version: latestBundle.version,
-        targets: [],
+        targets: selectedTargets(),
       })
       setInstallResults(results)
       await refresh()
@@ -149,6 +194,9 @@ export default function PaaSControlsDock() {
 
   const latestBundle = cache[0]
   const latestMigration = migrations[migrations.length - 1]
+  const needsProjectDir = PROJECT_RUNTIMES.has(targetRuntime)
+  const needsCustomDir = CUSTOM_RUNTIMES.has(targetRuntime)
+  const explicitTargetReady = targetRuntime === 'auto' || (!needsProjectDir || projectDir.trim()) && (!needsCustomDir || customDir.trim())
 
   return <aside className={open ? 'paas-dock open' : 'paas-dock'}>
     <button className="paas-dock-toggle" onClick={() => setOpen(!open)}>{open ? '关闭 PaaS' : 'PaaS 同步'}</button>
@@ -192,19 +240,28 @@ export default function PaaSControlsDock() {
         </div>
       </section>
 
-      <section className="paas-section">
+      <section className="paas-section paas-form">
         <strong>Bundle Cache / Schema</strong>
         <p>{latestBundle ? `${latestBundle.name} · ${latestBundle.version} · ${latestBundle.category}` : '暂无 PaaS Bundle 缓存。'}</p>
         <p>{latestMigration ? `Latest migration: ${latestMigration.name}` : 'Schema migration 尚未初始化。'}</p>
+        <select value={targetRuntime} onChange={(event) => setTargetRuntime(event.target.value)}>
+          {RUNTIME_OPTIONS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+        </select>
+        <input value={projectDir} onChange={(event) => setProjectDir(event.target.value)} placeholder="Project runtime 目录，例如 E:\\project\\demo" />
+        <input value={customDir} onChange={(event) => setCustomDir(event.target.value)} placeholder="Custom runtime 目录，例如 DEERFLOW_SKILLS_DIR" />
+        {targetRuntime === 'auto' && <p>Auto 会使用 Bundle 声明的 targets；如果包含项目级 runtime，建议改为显式选择 runtime 并填写 Project 目录。</p>}
+        {needsProjectDir && !projectDir.trim() && <p>当前 runtime 需要 projectDir。</p>}
+        {needsCustomDir && !customDir.trim() && <p>当前 runtime 建议填写 customDir。</p>}
         <div className="paas-actions">
-          <button disabled={busy || !latestBundle} onClick={previewLatestBundleInstall}>预览安装计划</button>
-          <button disabled={busy || !latestBundle} onClick={installLatestBundle}>安装最新缓存 Bundle</button>
+          <button disabled={busy || !latestBundle || !explicitTargetReady} onClick={previewLatestBundleInstall}>预览安装计划</button>
+          <button disabled={busy || !latestBundle || !explicitTargetReady} onClick={installLatestBundle}>安装最新缓存 Bundle</button>
         </div>
       </section>
 
       {bundlePlan && <section className="paas-section">
         <strong>Cached Bundle Install Plan</strong>
         <p>{bundlePlan.totalFiles} file(s), {bundlePlan.targets.length} runtime target(s), {bundlePlan.conflicts.length} conflict(s)</p>
+        {bundlePlan.targets.length > 0 && <pre>{bundlePlan.targets.map((target) => `${target.runtime}: ${target.filesToWrite} file(s) -> ${target.targetDirs.join('; ')}`).join('\n')}</pre>}
         {bundlePlan.warnings.length > 0 && <pre>{bundlePlan.warnings.join('\n')}</pre>}
       </section>}
 
