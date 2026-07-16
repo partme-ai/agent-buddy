@@ -76,7 +76,8 @@ Agent Buddy should first complete the local-first feature surface, then run vali
 | PaaS cached bundle reconstruction | Written | Added commands to read cached Bundle entries and reconstruct full `AgentBundle` values from cached raw JSON. |
 | PaaS cached bundle install plan | Written | Added installer support and command bridge to produce install plans directly from cached PaaS Bundles. |
 | PaaS cached bundle install execution | Written | Added install execution for cached PaaS Bundles with generated artifacts, backups, install records, audit events, and sync outbox records. |
-| PaaS controls dock | Written | Added `PaaSControlsDock.tsx` to save/clear sessions, register device, pull bundles, push sync outbox, show bundle cache/schema state, and preview/install latest cached bundle. |
+| PaaS cached bundle explicit targets | Written | PaaS controls now support explicit runtime selection plus projectDir/customDir for cached Bundle install preview and execution. |
+| PaaS controls dock | Written | Added `PaaSControlsDock.tsx` to save/clear sessions, register device, pull bundles, push sync outbox, show bundle cache/schema state, and preview/install latest cached bundle with explicit target controls. |
 | Local API spec | Written | Local daemon route spec. |
 | Console backend aggregation | Written | Added `console_core.rs` and commands for overview dashboard, health board, console instances, instance groups, retention cleanup preview, cleanup execution, and local daemon plan. |
 | Retention cleanup preview | Written | Preview command identifies old generated artifacts and backups based on local retention settings. |
