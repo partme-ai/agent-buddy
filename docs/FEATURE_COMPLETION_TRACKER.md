@@ -6,10 +6,16 @@ This tracker records feature coverage before build/typecheck/Tauri validation.
 
 Agent Buddy should first complete the local-first feature surface, then run validation.
 
+## Commercial product rule
+
+Agent Buddy commercial edition must be delivered as one product. Users should install only Agent Buddy; Buddy Browser, Buddy Runtime, Buddy Bridge, profiles, skills, platform adapters, policy, audit, and update services must be internal product modules rather than user-installed external tools.
+
 ## Current feature coverage
 
 | Area | Status | Notes |
 |---|---:|---|
+| Commercial product architecture | Written | Added `docs/COMMERCIAL_PRODUCT_ARCHITECTURE.md` to define Agent Buddy as a single installable commercial product with Buddy Browser, Buddy Runtime, Buddy Bridge, Buddy Policy, Buddy Adapter, Buddy Audit, and Buddy Update as owned modules. |
+| Buddy Browser / Runtime roadmap | Written | Added `docs/BUDDY_BROWSER_RUNTIME_ROADMAP.md` to phase the transition from the current Tauri MVP into Buddy Browser, Buddy Runtime, Buddy Bridge, platform adapters, and commercial workflows. |
 | Tauri / React / Rust shell | Written | Desktop shell and command bridge exist. |
 | SQLite local state | Written | Sources, detections, installs, backups, events, audit, sync, memory, knowledge, session, persistent console instances/groups/tags. |
 | SQLite schema migrations | Written | Added `schema_migrations`, `pragma user_version`, and startup migration initialization through `local_store.rs`. |
@@ -117,3 +123,5 @@ Agent Buddy should first complete the local-first feature surface, then run vali
 ## Next coding pass
 
 1. Run build/typecheck/Tauri validation and fix compile/runtime errors.
+2. Start Phase 1 of `BUDDY_BROWSER_RUNTIME_ROADMAP.md`: add product-owned Buddy Browser DTOs and mock provider.
+3. Add Buddy Policy and Buddy Audit primitives for browser actions.
