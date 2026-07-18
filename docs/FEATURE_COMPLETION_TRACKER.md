@@ -18,6 +18,7 @@ Agent Buddy commercial edition must be delivered as one product. Users should in
 | Buddy Browser / Runtime roadmap | Written | Added `docs/BUDDY_BROWSER_RUNTIME_ROADMAP.md` to phase the transition from the current Tauri MVP into Buddy Browser, Buddy Runtime, Buddy Bridge, platform adapters, and commercial workflows. |
 | OpenCLI reference review | Written | Added `docs/OPENCLI_REFERENCE_REVIEW.md` to classify OpenCLI as an architecture and adapter-system reference for Buddy Runtime / Buddy Adapter, not a required commercial runtime dependency. |
 | Browser automation reference review | Written | Added `docs/BROWSER_AUTOMATION_REFERENCE_REVIEW.md` to classify Tencent BrowserSkill as a Buddy Bridge reference and browser-use as a Buddy Agent / browser task loop reference, without making either a required user dependency. |
+| New feature planning backlog | Written | Added `docs/NEW_FEATURE_PLANNING.md` to break the next commercial feature work into validation, Buddy Browser, Buddy Policy, Buddy Audit, Buddy Agent loop, Buddy Bridge, Adapter Center, Browser Workbench, PaaS Bundle lifecycle, and commercial packaging epics. |
 | Tauri / React / Rust shell | Written | Desktop shell and command bridge exist. |
 | SQLite local state | Written | Sources, detections, installs, backups, events, audit, sync, memory, knowledge, session, persistent console instances/groups/tags. |
 | SQLite schema migrations | Written | Added `schema_migrations`, `pragma user_version`, and startup migration initialization through `local_store.rs`. |
@@ -128,3 +129,4 @@ Agent Buddy commercial edition must be delivered as one product. Users should in
 2. Start Phase 1 of `BUDDY_BROWSER_RUNTIME_ROADMAP.md`: add product-owned Buddy Browser DTOs and mock provider.
 3. Add Buddy Policy and Buddy Audit primitives for browser actions.
 4. Convert `BROWSER_AUTOMATION_REFERENCE_REVIEW.md` into product-owned Buddy Bridge / Buddy Agent contracts.
+5. Use `NEW_FEATURE_PLANNING.md` as the executable backlog for the next commercial feature pass.
